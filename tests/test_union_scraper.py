@@ -281,3 +281,78 @@ def test_scrape_propagates_connection_errors(
 
     with pytest.raises(requests.ConnectionError):
         union.scrape(entity, source)
+
+
+def test_scrape_uses_bolivia_timezone(
+    entity, source, monkeypatch
+):
+    response = mock_response(quotation_html())
+
+    datetime_mock = Mock()
+    datetime_mock.now.return_value.date.return_value.isoformat.return_value = (
+        "2026-11-24"
+    )
+
+    monkeypatch.setattr(
+        union.requests,
+        "get",
+        Mock(return_value=response),
+    )
+
+    monkeypatch.setattr(
+        union,
+        "datetime",
+        datetime_mock,
+    )
+
+    quote = union.scrape(entity, source)
+
+    assert quote["date"] == "2026-11-24"
+    datetime_mock.now.assert_called_once_with(union.TIMEZONE)
+
+
+def test_scrape_propagates_timeout_errors(
+    entity, source, monkeypatch
+):
+    get_mock = Mock(
+        side_effect=requests.Timeout("Request timed out")
+    )
+
+    monkeypatch.setattr(
+        union.requests,
+        "get",
+        get_mock,
+    )
+
+    with pytest.raises(requests.Timeout):
+        union.scrape(entity, source)
+
+
+def test_scrape_rejects_quotation_with_invalid_buy_or_sell(
+    entity, source, monkeypatch
+):
+    html = """
+    <html>
+        <body>
+            <p class="card-text">
+                Dólar Oficial: 11,75
+                <br>
+                Compra BOB: 10,75
+            </p>
+        </body>
+    </html>
+    """
+
+    response = mock_response(html)
+
+    monkeypatch.setattr(
+        union.requests,
+        "get",
+        Mock(return_value=response),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Could not find",
+    ):
+        union.scrape(entity, source)

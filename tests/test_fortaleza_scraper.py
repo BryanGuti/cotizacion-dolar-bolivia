@@ -268,3 +268,87 @@ def test_scrape_propagates_http_error(monkeypatch):
 
     with pytest.raises(requests.exceptions.HTTPError):
         scrape(ENTITY, SOURCE)
+
+
+def test_scrape_sends_expected_headers(monkeypatch):
+    session = mock_session(monkeypatch)
+
+    scrape(ENTITY, SOURCE)
+
+    assert "Mozilla/5.0" in session.headers["User-Agent"]
+    assert session.headers["Accept"] == "application/json"
+    assert session.headers["Referer"] == BASE_URL
+    assert session.headers["Cache-Control"] == "no-cache"
+    assert session.headers["Pragma"] == "no-cache"
+
+
+def test_scrape_propagates_homepage_http_error(monkeypatch):
+    mock_session(
+        monkeypatch,
+        homepage_error=requests.HTTPError("HTTP 403"),
+    )
+
+    with pytest.raises(requests.HTTPError):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_connection_error(monkeypatch):
+    class ErrorSession(MockSession):
+        def get(self, url, **kwargs):
+            raise requests.ConnectionError("Connection failed")
+
+    session = ErrorSession()
+
+    monkeypatch.setattr(
+        "scraper.sources.fortaleza.requests.Session",
+        lambda: session,
+    )
+
+    with pytest.raises(requests.ConnectionError):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_timeout_error(monkeypatch):
+    class ErrorSession(MockSession):
+        def get(self, url, **kwargs):
+            raise requests.Timeout("Request timed out")
+
+    session = ErrorSession()
+
+    monkeypatch.setattr(
+        "scraper.sources.fortaleza.requests.Session",
+        lambda: session,
+    )
+
+    with pytest.raises(requests.Timeout):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_missing_status_code(monkeypatch):
+    data = {
+        **VALID_RESPONSE,
+    }
+    data.pop("statusCode")
+
+    mock_session(
+        monkeypatch,
+        api_response=MockResponse(data),
+    )
+
+    with pytest.raises(ValueError, match="unsuccessful status code"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_missing_valid_status_flag(monkeypatch):
+    data = {
+        **VALID_RESPONSE,
+    }
+    data.pop("validStatusCode")
+
+    mock_session(
+        monkeypatch,
+        api_response=MockResponse(data),
+    )
+
+    with pytest.raises(ValueError, match="invalid status"):
+        scrape(ENTITY, SOURCE)

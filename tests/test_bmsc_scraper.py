@@ -247,3 +247,54 @@ def test_scrape_propagates_connection_errors(
 
     with pytest.raises(requests.ConnectionError):
         bmsc.scrape(entity, source)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("compra", 0),
+        ("compra", -1),
+        ("compra", True),
+        ("venta", 0),
+        ("venta", -1),
+        ("venta", True),
+    ],
+)
+
+def test_scrape_rejects_non_positive_or_boolean_rates(
+    entity, source, monkeypatch, field, value
+):
+    data = {
+        "compra": 10.65,
+        "venta": 12.05,
+    }
+
+    data[field] = value
+
+    response = mock_response(data)
+
+    monkeypatch.setattr(
+        bmsc.requests,
+        "get",
+        Mock(return_value=response),
+    )
+
+    with pytest.raises(ValueError):
+        bmsc.scrape(entity, source)
+
+
+def test_scrape_propagates_timeout_errors(
+    entity, source, monkeypatch
+):
+    get_mock = Mock(
+        side_effect=requests.Timeout("Request timed out")
+    )
+
+    monkeypatch.setattr(
+        bmsc.requests,
+        "get",
+        get_mock,
+    )
+
+    with pytest.raises(requests.Timeout):
+        bmsc.scrape(entity, source)

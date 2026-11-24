@@ -172,3 +172,140 @@ def test_scrape_propagates_http_error(monkeypatch):
 
     with pytest.raises(requests.exceptions.HTTPError):
         scrape(ENTITY, SOURCE)
+
+
+def test_scrape_handles_line_breaks_in_document(monkeypatch):
+    data = {
+        "respuesta": True,
+        "resultado": {
+            "documento": (
+                "Dólar Oficial: 11,78\n"
+                "Dólar Compra: 10,78\n"
+                "Dólar Venta: 12,13\n"
+            ),
+            "fecha": "24 de noviembre 2026",
+        },
+    }
+
+    monkeypatch.setattr(
+        "scraper.sources.fie.requests.post",
+        lambda *args, **kwargs: mock_response(data),
+    )
+
+    quote = scrape(ENTITY, SOURCE)
+
+    assert quote["buy"] == Decimal("10.78")
+    assert quote["sell"] == Decimal("12.13")
+
+
+def test_scrape_rejects_duplicate_buy_rate(monkeypatch):
+    data = {
+        "respuesta": True,
+        "resultado": {
+            "documento": (
+                "Dólar Compra: 10,78 "
+                "Dólar Compra: 10,80 "
+                "Dólar Venta: 12,13"
+            ),
+            "fecha": "24 de noviembre 2026",
+        },
+    }
+
+    monkeypatch.setattr(
+        "scraper.sources.fie.requests.post",
+        lambda *args, **kwargs: mock_response(data),
+    )
+
+    with pytest.raises(ValueError, match="Multiple USD buy rates"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_duplicate_sell_rate(monkeypatch):
+    data = {
+        "respuesta": True,
+        "resultado": {
+            "documento": (
+                "Dólar Compra: 10,78 "
+                "Dólar Venta: 12,13 "
+                "Dólar Venta: 12,15"
+            ),
+            "fecha": "24 de noviembre 2026",
+        },
+    }
+
+    monkeypatch.setattr(
+        "scraper.sources.fie.requests.post",
+        lambda *args, **kwargs: mock_response(data),
+    )
+
+    with pytest.raises(ValueError, match="Multiple USD sell rates"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_non_dictionary_response(monkeypatch):
+    monkeypatch.setattr(
+        "scraper.sources.fie.requests.post",
+        lambda *args, **kwargs: mock_response([]),
+    )
+
+    with pytest.raises(ValueError, match="JSON object"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_invalid_json(monkeypatch):
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.side_effect = requests.exceptions.JSONDecodeError(
+        "Invalid JSON",
+        "invalid",
+        0,
+    )
+
+    monkeypatch.setattr(
+        "scraper.sources.fie.requests.post",
+        lambda *args, **kwargs: response,
+    )
+
+    with pytest.raises(ValueError, match="invalid JSON"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_invalid_result_type(monkeypatch):
+    data = {
+        "respuesta": True,
+        "resultado": [],
+    }
+
+    monkeypatch.setattr(
+        "scraper.sources.fie.requests.post",
+        lambda *args, **kwargs: mock_response(data),
+    )
+
+    with pytest.raises(ValueError, match="resultado object"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_connection_error(monkeypatch):
+    def raise_connection_error(*args, **kwargs):
+        raise requests.ConnectionError("Connection failed")
+
+    monkeypatch.setattr(
+        "scraper.sources.fie.requests.post",
+        raise_connection_error,
+    )
+
+    with pytest.raises(requests.ConnectionError):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_timeout_error(monkeypatch):
+    def raise_timeout(*args, **kwargs):
+        raise requests.Timeout("Request timed out")
+
+    monkeypatch.setattr(
+        "scraper.sources.fie.requests.post",
+        raise_timeout,
+    )
+
+    with pytest.raises(requests.Timeout):
+        scrape(ENTITY, SOURCE)

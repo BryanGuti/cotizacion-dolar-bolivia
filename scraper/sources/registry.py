@@ -31,7 +31,10 @@ def has_scraper(entity_id: str) -> bool:
 
     Returns:
         True if the entity has a registered scraper.
+        False if the identifier is invalid or unregistered.
     """
+    if not isinstance(entity_id, str) or not entity_id.strip():
+        return False
 
     return entity_id in SCRAPER_MODULES
 
@@ -47,11 +50,15 @@ def get_scraper(entity_id: str) -> Callable:
         The entity's scrape() function.
 
     Raises:
-        KeyError: If the entity has no registered scraper.
+        KeyError: If the entity ID is invalid or has no registered scraper.
         ImportError: If the scraper module cannot be imported.
         AttributeError: If the module does not expose scrape().
         TypeError: If scrape is not callable.
     """
+    if not isinstance(entity_id, str) or not entity_id.strip():
+        raise KeyError(
+            f"Invalid or unregistered entity ID: {entity_id!r}"
+        )
 
     module_path = SCRAPER_MODULES.get(entity_id)
 

@@ -145,3 +145,88 @@ def test_scrape_propagates_http_error(monkeypatch):
 
     with pytest.raises(requests.exceptions.HTTPError):
         scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_duplicate_buy_rate(monkeypatch):
+    html = """
+    <div class="marquee-container">
+        <div class="marquee-content">
+            <span>Dólar Compra: 11.28</span>
+            <span>Dólar Compra: 11.30</span>
+            <span>Dólar Venta: 12.08</span>
+        </div>
+    </div>
+    """
+
+    monkeypatch.setattr(
+        "scraper.sources.bcp.requests.get",
+        lambda *args, **kwargs: mock_response(html),
+    )
+
+    with pytest.raises(ValueError, match="Multiple values"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_duplicate_sell_rate(monkeypatch):
+    html = """
+    <div class="marquee-container">
+        <div class="marquee-content">
+            <span>Dólar Compra: 11.28</span>
+            <span>Dólar Venta: 12.08</span>
+            <span>Dólar Venta: 12.10</span>
+        </div>
+    </div>
+    """
+
+    monkeypatch.setattr(
+        "scraper.sources.bcp.requests.get",
+        lambda *args, **kwargs: mock_response(html),
+    )
+
+    with pytest.raises(ValueError, match="Multiple values"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_invalid_sell_rate(monkeypatch):
+    html = """
+    <div class="marquee-container">
+        <div class="marquee-content">
+            <span>Dólar Compra: 11.28</span>
+            <span>Dólar Venta: invalid</span>
+        </div>
+    </div>
+    """
+
+    monkeypatch.setattr(
+        "scraper.sources.bcp.requests.get",
+        lambda *args, **kwargs: mock_response(html),
+    )
+
+    with pytest.raises(ValueError, match="Invalid value"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_connection_error(monkeypatch):
+    def raise_connection_error(*args, **kwargs):
+        raise requests.ConnectionError("Connection failed")
+
+    monkeypatch.setattr(
+        "scraper.sources.bcp.requests.get",
+        raise_connection_error,
+    )
+
+    with pytest.raises(requests.ConnectionError):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_timeout_error(monkeypatch):
+    def raise_timeout(*args, **kwargs):
+        raise requests.Timeout("Request timed out")
+
+    monkeypatch.setattr(
+        "scraper.sources.bcp.requests.get",
+        raise_timeout,
+    )
+
+    with pytest.raises(requests.Timeout):
+        scrape(ENTITY, SOURCE)

@@ -226,3 +226,71 @@ def test_scrape_propagates_http_error(monkeypatch):
 
     with pytest.raises(requests.exceptions.HTTPError):
         scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_invalid_date_structure(monkeypatch):
+    create_mock_session(
+        monkeypatch,
+        date_data=["invalid"],
+    )
+
+    with pytest.raises(ValueError, match="invalid date structure"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_non_string_date(monkeypatch):
+    create_mock_session(
+        monkeypatch,
+        date_data={"fecha": 20261124},
+    )
+
+    with pytest.raises(ValueError, match="invalid quotation date"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_parse_quote_date_rejects_unknown_month():
+    with pytest.raises(ValueError, match="unrecognized month"):
+        _parse_quote_date("24 de MesDesconocido de 2026")
+
+
+def test_parse_quote_date_rejects_invalid_calendar_date():
+    with pytest.raises(ValueError, match="invalid calendar date"):
+        _parse_quote_date("31 de febrero de 2026")
+
+
+def test_parse_quote_date_accepts_setiembre():
+    assert _parse_quote_date(
+        "24 de setiembre de 2026"
+    ) == "2026-09-24"
+
+
+def test_scrape_propagates_connection_error(monkeypatch):
+    class ErrorSession(MockSession):
+        def get(self, url, **kwargs):
+            raise requests.ConnectionError("Connection failed")
+
+    session = ErrorSession()
+
+    monkeypatch.setattr(
+        "scraper.sources.economico.requests.Session",
+        lambda: session,
+    )
+
+    with pytest.raises(requests.ConnectionError):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_timeout_error(monkeypatch):
+    class ErrorSession(MockSession):
+        def get(self, url, **kwargs):
+            raise requests.Timeout("Request timed out")
+
+    session = ErrorSession()
+
+    monkeypatch.setattr(
+        "scraper.sources.economico.requests.Session",
+        lambda: session,
+    )
+
+    with pytest.raises(requests.Timeout):
+        scrape(ENTITY, SOURCE)

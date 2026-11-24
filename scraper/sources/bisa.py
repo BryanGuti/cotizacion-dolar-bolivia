@@ -20,6 +20,20 @@ RATE_PATTERN = re.compile(r"^\s*[\d.,]+\s*$")
 
 
 def scrape(entity: dict, source: dict) -> dict:
+    """
+    Retrieve USD buy and sell rates from Banco BISA.
+
+    Args:
+        entity: Entity configuration.
+        source: Source configuration containing the website URL.
+
+    Returns:
+        A normalized quotation dictionary.
+
+    Raises:
+        requests.RequestException: If the HTTP request fails.
+        ValueError: If the quotation cannot be found or parsed.
+    """
     response = requests.get(
         source["url"],
         headers={
@@ -53,25 +67,35 @@ def scrape(entity: dict, source: dict) -> dict:
         if label not in RATE_LABELS:
             continue
 
-        rate_element = label_element.next_sibling
-
-        if rate_element is None:
-            raise ValueError(
-                f"Missing value for '{label}' on BISA's website."
-            )
-
-        raw_rate = str(rate_element).strip()
-
-        if not RATE_PATTERN.fullmatch(raw_rate):
-            raise ValueError(
-                f"Invalid value for '{label}' on BISA's website: {raw_rate}"
-            )
-
         rate_key = RATE_LABELS[label]
 
         if rate_key in rates:
             raise ValueError(
                 f"Multiple values found for '{label}' on BISA's website."
+            )
+
+        # Find the first non-empty sibling after the label.
+        raw_rate = None
+
+        for sibling in label_element.next_siblings:
+            value = (
+                sibling.get_text(" ", strip=True)
+                if hasattr(sibling, "get_text")
+                else str(sibling).strip()
+            )
+
+            if value:
+                raw_rate = value
+                break
+
+        if raw_rate is None:
+            raise ValueError(
+                f"Missing value for '{label}' on BISA's website."
+            )
+
+        if not RATE_PATTERN.fullmatch(raw_rate):
+            raise ValueError(
+                f"Invalid value for '{label}' on BISA's website: {raw_rate}"
             )
 
         rates[rate_key] = raw_rate

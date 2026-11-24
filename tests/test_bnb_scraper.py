@@ -150,3 +150,92 @@ def test_scrape_propagates_http_error(monkeypatch):
 
     with pytest.raises(requests.exceptions.HTTPError):
         scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_duplicate_buy_rate(monkeypatch):
+    html = """
+    <div class="container d12">
+        <span>Tipos de Cambio</span>
+        <span>Dólar Compra</span>
+        <span>11.78</span>
+        <span>Dólar Compra</span>
+        <span>11.80</span>
+        <span>Dólar Venta</span>
+        <span>12.08</span>
+    </div>
+    """
+
+    monkeypatch.setattr(
+        "scraper.sources.bnb.requests.get",
+        lambda *args, **kwargs: mock_response(html),
+    )
+
+    with pytest.raises(ValueError, match="Multiple"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_duplicate_sell_rate(monkeypatch):
+    html = """
+    <div class="container d12">
+        <span>Tipos de Cambio</span>
+        <span>Dólar Compra</span>
+        <span>11.78</span>
+        <span>Dólar Venta</span>
+        <span>12.08</span>
+        <span>Dólar Venta</span>
+        <span>12.10</span>
+    </div>
+    """
+
+    monkeypatch.setattr(
+        "scraper.sources.bnb.requests.get",
+        lambda *args, **kwargs: mock_response(html),
+    )
+
+    with pytest.raises(ValueError, match="Multiple"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_missing_value_before_next_label(monkeypatch):
+    html = """
+    <div class="container d12">
+        <span>Tipos de Cambio</span>
+        <span>Dólar Compra</span>
+        <span>Dólar Venta</span>
+        <span>12.08</span>
+    </div>
+    """
+
+    monkeypatch.setattr(
+        "scraper.sources.bnb.requests.get",
+        lambda *args, **kwargs: mock_response(html),
+    )
+
+    with pytest.raises(ValueError, match="Missing value"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_connection_errors(monkeypatch):
+    def raise_connection_error(*args, **kwargs):
+        raise requests.ConnectionError("Connection failed")
+
+    monkeypatch.setattr(
+        "scraper.sources.bnb.requests.get",
+        raise_connection_error,
+    )
+
+    with pytest.raises(requests.ConnectionError):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_timeout_errors(monkeypatch):
+    def raise_timeout(*args, **kwargs):
+        raise requests.Timeout("Request timed out")
+
+    monkeypatch.setattr(
+        "scraper.sources.bnb.requests.get",
+        raise_timeout,
+    )
+
+    with pytest.raises(requests.Timeout):
+        scrape(ENTITY, SOURCE)

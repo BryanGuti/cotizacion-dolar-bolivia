@@ -1,14 +1,10 @@
-
 import re
 import requests
 
 from datetime import date
-from zoneinfo import ZoneInfo
 
 from scraper.sources.base import build_quote
 
-
-TIMEZONE = ZoneInfo("America/La_Paz")
 
 MONTHS = {
     "enero": 1,

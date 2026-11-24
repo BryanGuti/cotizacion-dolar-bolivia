@@ -1,6 +1,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 
 from scraper.sources.bcb import scrape
 
@@ -145,3 +146,51 @@ def test_scrape_propagates_http_errors():
     ):
         with pytest.raises(requests.HTTPError):
             scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_connection_errors():
+    with patch(
+        "scraper.sources.bcb.requests.get",
+        side_effect=requests.ConnectionError("Connection failed"),
+    ):
+        with pytest.raises(requests.ConnectionError):
+            scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_timeout_errors():
+    with patch(
+        "scraper.sources.bcb.requests.get",
+        side_effect=requests.Timeout("Request timed out"),
+    ):
+        with pytest.raises(requests.Timeout):
+            scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_impossible_calendar_date():
+    html = """
+    <html>
+        <body>
+            <div class="encabezado">
+                <div class="bcbs-subtitulo">
+                    <div>
+                        TABLA DE COTIZACIONES DEL 31 DE FEBRERO DE 2026
+                    </div>
+                </div>
+            </div>
+
+            <table class="tabla-cotizacion">
+                <tr class="fila1">
+                    <td class="numero">11.75</td>
+                </tr>
+            </table>
+        </body>
+    </html>
+    """
+
+    with patch(
+        "scraper.sources.bcb.requests.get",
+        return_value=build_response(html),
+    ):
+        with pytest.raises(ValueError):
+            scrape(ENTITY, SOURCE)
+

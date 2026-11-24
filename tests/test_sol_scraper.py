@@ -1,5 +1,6 @@
 
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 
 import pytest
@@ -73,7 +74,9 @@ def test_scrape_returns_valid_quote(monkeypatch):
 
     assert quote["buy"] == Decimal("10.58")
     assert quote["sell"] == Decimal("12.00")
-    assert quote["date"] == date.today().isoformat()
+    assert quote["date"] == datetime.now(
+        ZoneInfo("America/La_Paz")
+    ).date().isoformat()
     assert "captured_at" in quote
 
 
@@ -201,4 +204,46 @@ def test_scrape_propagates_http_error(monkeypatch):
     )
 
     with pytest.raises(requests.exceptions.HTTPError):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_duplicate_sell_rates(monkeypatch):
+    html = HTML.replace(
+        "Tipo de cambio venta</strong>: 12.00",
+        "Tipo de cambio venta</strong>: 12.00 - "
+        "Tipo de cambio venta: 12.10",
+    )
+
+    monkeypatch.setattr(
+        "scraper.sources.sol.requests.get",
+        lambda *args, **kwargs: MockResponse(text=html),
+    )
+
+    with pytest.raises(ValueError, match="multiple sell exchange rates"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_connection_error(monkeypatch):
+    def raise_connection_error(*args, **kwargs):
+        raise requests.ConnectionError("Connection failed")
+
+    monkeypatch.setattr(
+        "scraper.sources.sol.requests.get",
+        raise_connection_error,
+    )
+
+    with pytest.raises(requests.ConnectionError):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_timeout_error(monkeypatch):
+    def raise_timeout(*args, **kwargs):
+        raise requests.Timeout("Request timed out")
+
+    monkeypatch.setattr(
+        "scraper.sources.sol.requests.get",
+        raise_timeout,
+    )
+
+    with pytest.raises(requests.Timeout):
         scrape(ENTITY, SOURCE)

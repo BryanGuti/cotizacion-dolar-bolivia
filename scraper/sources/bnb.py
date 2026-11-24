@@ -6,6 +6,20 @@ from scraper.sources.base import build_quote
 
 
 def scrape(entity: dict, source: dict) -> dict:
+    """
+    Retrieve USD buy and sell rates from Banco Nacional de Bolivia.
+
+    Args:
+        entity: Entity configuration.
+        source: Source configuration containing the website URL.
+
+    Returns:
+        A normalized quotation dictionary.
+
+    Raises:
+        requests.RequestException: If the HTTP request fails.
+        ValueError: If the quotation cannot be found or parsed.
+    """
     response = requests.get(
         source["url"],
         headers={
@@ -57,15 +71,26 @@ def scrape(entity: dict, source: dict) -> dict:
         if label not in labels:
             continue
 
+        rate_type = labels[label]
+
+        if rate_type in rates:
+            raise ValueError(
+                f"Multiple '{label}' values found on BNB's website."
+            )
+
         if index + 1 >= len(spans):
             raise ValueError(
                 f"Missing value for '{label}' on BNB's website."
             )
 
-        rates[labels[label]] = spans[index + 1].get_text(
-            " ",
-            strip=True,
-        )
+        raw_rate = spans[index + 1].get_text(" ", strip=True)
+
+        if raw_rate in labels:
+            raise ValueError(
+                f"Missing value for '{label}' on BNB's website."
+            )
+
+        rates[rate_type] = raw_rate
 
     if set(rates) != {"buy", "sell"}:
         raise ValueError(

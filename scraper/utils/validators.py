@@ -1,5 +1,5 @@
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 
@@ -17,10 +17,44 @@ def _is_valid_rate(value) -> bool:
 
     try:
         rate = Decimal(str(value))
+
     except (InvalidOperation, ValueError, TypeError):
         return False
 
     return rate.is_finite() and rate > 0
+
+
+def _is_valid_date(value) -> bool:
+    """Check whether a date uses the exact YYYY-MM-DD format."""
+
+    if not isinstance(value, str):
+        return False
+
+    try:
+        parsed_date = date.fromisoformat(value)
+
+    except ValueError:
+        return False
+
+    return parsed_date.isoformat() == value
+
+
+def _is_valid_timestamp(value) -> bool:
+    """Check whether a timestamp is ISO 8601 and includes a timezone."""
+
+    if not isinstance(value, str):
+        return False
+
+    try:
+        captured_at = datetime.fromisoformat(value)
+
+    except ValueError:
+        return False
+
+    return (
+        captured_at.tzinfo is not None
+        and captured_at.utcoffset() is not None
+    )
 
 
 def validate_quote(entity: dict, quote: dict) -> tuple[bool, list[str]]:
@@ -32,38 +66,53 @@ def validate_quote(entity: dict, quote: dict) -> tuple[bool, list[str]]:
 
     Commercial banks:
         date, captured_at, buy, sell
+
+    Returns:
+        tuple[bool, list[str]]:
+            Whether the quotation is valid and a list of validation errors.
     """
 
     errors = []
 
+    # 1. Validate the entity structure.
     if not isinstance(entity, dict):
         return False, ["Entity must be a dictionary."]
 
     required_entity_fields = ("id", "name", "type")
 
     for field in required_entity_fields:
-        if not entity.get(field):
-            errors.append(f"Missing entity field: {field}")
+        value = entity.get(field)
+
+        if not isinstance(value, str) or not value.strip():
+            errors.append(
+                f"Missing entity field: {field}"
+            )
 
     entity_type = entity.get("type")
 
-    if entity_type not in VALID_ENTITY_TYPES:
+    if (
+        not isinstance(entity_type, str)
+        or entity_type not in VALID_ENTITY_TYPES
+    ):
         errors.append("Invalid entity type.")
 
+    # 2. Validate the quotation structure.
     if not isinstance(quote, dict):
         errors.append("Quotation must be a dictionary.")
         return False, errors
 
-    # Common fields for all quotation types.
-    required_fields = ("date", "captured_at")
+    # 3. Validate common quotation fields.
+    common_fields = ("date", "captured_at")
 
-    for field in required_fields:
+    for field in common_fields:
         if field not in quote:
-            errors.append(f"Missing quotation field: {field}")
+            errors.append(
+                f"Missing quotation field: {field}"
+            )
 
-    # Entity-specific quotation fields.
+    # 4. Determine entity-specific quotation fields.
     if entity_type == "central_bank":
-        required_fields = ("official_rate",)
+        rate_fields = ("official_rate",)
 
         if "buy" in quote or "sell" in quote:
             errors.append(
@@ -71,7 +120,7 @@ def validate_quote(entity: dict, quote: dict) -> tuple[bool, list[str]]:
             )
 
     elif entity_type == "commercial_bank":
-        required_fields = ("buy", "sell")
+        rate_fields = ("buy", "sell")
 
         if "official_rate" in quote:
             errors.append(
@@ -79,38 +128,33 @@ def validate_quote(entity: dict, quote: dict) -> tuple[bool, list[str]]:
             )
 
     else:
-        required_fields = ()
+        rate_fields = ()
 
-    for field in required_fields:
+    for field in rate_fields:
         if field not in quote:
-            errors.append(f"Missing quotation field: {field}")
+            errors.append(
+                f"Missing quotation field: {field}"
+            )
 
+    # 5. Stop if required fields are missing or structures are invalid.
     if errors:
         return False, errors
 
-    # Validate quotation date.
-    try:
-        datetime.strptime(quote["date"], "%Y-%m-%d")
-    except (TypeError, ValueError):
-        errors.append("Invalid quotation date. Expected YYYY-MM-DD.")
-
-    # Validate capture timestamp.
-    try:
-        captured_at = datetime.fromisoformat(quote["captured_at"])
-
-        if captured_at.tzinfo is None or captured_at.utcoffset() is None:
-            errors.append(
-                "Capture timestamp must include a timezone."
-            )
-
-    except (TypeError, ValueError):
+    # 6. Validate quotation date.
+    if not _is_valid_date(quote["date"]):
         errors.append(
-            "Invalid capture timestamp. Expected ISO 8601."
+            "Invalid quotation date. Expected YYYY-MM-DD."
         )
 
-    # Validate entity-specific rates.
-    for field in required_fields:
-        if field in quote and not _is_valid_rate(quote[field]):
+    # 7. Validate capture timestamp.
+    if not _is_valid_timestamp(quote["captured_at"]):
+        errors.append(
+            "Invalid capture timestamp. Expected ISO 8601 with timezone."
+        )
+
+    # 8. Validate entity-specific exchange rates.
+    for field in rate_fields:
+        if not _is_valid_rate(quote[field]):
             errors.append(
                 f"{field} must be a positive, finite numeric value."
             )

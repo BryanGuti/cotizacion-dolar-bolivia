@@ -29,11 +29,25 @@ RATE_PATTERN = re.compile(
     r"Dólar\s+Compra\s*:\s*([\d.,]+)"
     r".*?"
     r"Dólar\s+Venta\s*:\s*([\d.,]+)",
-    re.IGNORECASE,
+    re.IGNORECASE | re.DOTALL,
 )
 
 
 def scrape(entity: dict, source: dict) -> dict:
+    """
+    Retrieve USD buy and sell rates from Banco FIE's API.
+
+    Args:
+        entity: Entity configuration.
+        source: Source configuration containing the API URL.
+
+    Returns:
+        A normalized quotation dictionary.
+
+    Raises:
+        requests.RequestException: If the HTTP request fails.
+        ValueError: If the API response or quotation is invalid.
+    """
     response = requests.post(
         source["url"],
         headers={
@@ -81,6 +95,24 @@ def scrape(entity: dict, source: dict) -> dict:
     if not isinstance(raw_date, str) or not raw_date.strip():
         raise ValueError(
             "Banco FIE API response is missing the quotation date."
+        )
+
+    # Reject ambiguous quotations containing duplicated labels.
+    buy_count = len(
+        re.findall(r"Dólar\s+Compra\s*:", document, re.IGNORECASE)
+    )
+    sell_count = len(
+        re.findall(r"Dólar\s+Venta\s*:", document, re.IGNORECASE)
+    )
+
+    if buy_count > 1:
+        raise ValueError(
+            "Multiple USD buy rates found in Banco FIE API response."
+        )
+
+    if sell_count > 1:
+        raise ValueError(
+            "Multiple USD sell rates found in Banco FIE API response."
         )
 
     match = RATE_PATTERN.search(document)

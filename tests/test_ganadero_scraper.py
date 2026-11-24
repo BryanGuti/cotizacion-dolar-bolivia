@@ -1,5 +1,6 @@
 
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 
 import pytest
@@ -74,7 +75,9 @@ def test_scrape_returns_valid_quote(monkeypatch):
 
     assert quote["buy"] == Decimal("10.00")
     assert quote["sell"] == Decimal("12.08")
-    assert quote["date"] == date.today().isoformat()
+    assert quote["date"] == datetime.now(
+        ZoneInfo("America/La_Paz")
+    ).date().isoformat()
     assert "captured_at" in quote
 
 
@@ -175,4 +178,85 @@ def test_scrape_propagates_http_error(monkeypatch):
     )
 
     with pytest.raises(requests.exceptions.HTTPError):
+        scrape(ENTITY, SOURCE)
+
+
+
+def test_scrape_rejects_duplicate_sell_elements(monkeypatch):
+    html = HTML + '<img id="refVenta">'
+
+    monkeypatch.setattr(
+        "scraper.sources.ganadero.requests.get",
+        lambda *args, **kwargs: MockResponse(text=html),
+    )
+
+    with pytest.raises(ValueError, match="multiple refVenta"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_missing_sell_rate(monkeypatch):
+    html = HTML.replace("12,08 Bs.", "valor inválido")
+
+    monkeypatch.setattr(
+        "scraper.sources.ganadero.requests.get",
+        lambda *args, **kwargs: MockResponse(text=html),
+    )
+
+    with pytest.raises(ValueError, match="Could not extract"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_multiple_buy_rates(monkeypatch):
+    html = HTML.replace(
+        "T. Cambio Compra",
+        "T. Cambio Compra 10,00 Bs. T. Cambio Compra",
+    )
+
+    monkeypatch.setattr(
+        "scraper.sources.ganadero.requests.get",
+        lambda *args, **kwargs: MockResponse(text=html),
+    )
+
+    with pytest.raises(ValueError, match="multiple rates"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_rejects_multiple_sell_rates(monkeypatch):
+    html = HTML.replace(
+        "T. Cambio Venta",
+        "T. Cambio Venta 12,08 Bs. T. Cambio Venta",
+    )
+
+    monkeypatch.setattr(
+        "scraper.sources.ganadero.requests.get",
+        lambda *args, **kwargs: MockResponse(text=html),
+    )
+
+    with pytest.raises(ValueError, match="multiple rates"):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_connection_error(monkeypatch):
+    def raise_connection_error(*args, **kwargs):
+        raise requests.ConnectionError("Connection failed")
+
+    monkeypatch.setattr(
+        "scraper.sources.ganadero.requests.get",
+        raise_connection_error,
+    )
+
+    with pytest.raises(requests.ConnectionError):
+        scrape(ENTITY, SOURCE)
+
+
+def test_scrape_propagates_timeout_error(monkeypatch):
+    def raise_timeout(*args, **kwargs):
+        raise requests.Timeout("Request timed out")
+
+    monkeypatch.setattr(
+        "scraper.sources.ganadero.requests.get",
+        raise_timeout,
+    )
+
+    with pytest.raises(requests.Timeout):
         scrape(ENTITY, SOURCE)
