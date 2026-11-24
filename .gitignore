@@ -18,3 +18,6 @@ data/progress.json
 
 # Editor
 .vscode/
+
+# Scrapper execution state
+scraper/progress.json
