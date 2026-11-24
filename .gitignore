@@ -3,21 +3,25 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 
-# Virtual environment
+# Virtual environments
 .venv/
 venv/
 
-# Local environment
+# Local environment variables
 .env
+.env.*
 
 # Scraper execution state
-data/progress.json
+scraper/progress.json
 
 # Logs
 *.log
 
-# Editor
-.vscode/
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Scrapper execution state
-scraper/progress.json
+# Editor and IDE
+.vscode/
+.idea/
