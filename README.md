@@ -92,6 +92,8 @@ dolar-bolivia/
 ├── scraper/
 │   ├── main.py
 │   ├── config.py
+│   ├── diagnose_bcp.py
+│   ├── validate_public_data.py
 │   │
 │   ├── sources/
 │   │   ├── base.py
@@ -114,11 +116,14 @@ dolar-bolivia/
 │       ├── normalizer.py
 │       └── storage.py
 │
+├── scripts/
+│   └── update_exchange_rates.sh
+│
 ├── tests/
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml
-│       └── scrape-and-deploy.yml
+│       └── deploy-pages.yml
 │
 ├── .gitignore
 ├── README.md
@@ -151,6 +156,14 @@ Contiene las herramientas compartidas por el sistema.
 - `validators.py`: verifica la estructura y validez de las cotizaciones.
 - `normalizer.py`: normaliza los valores numéricos obtenidos desde las distintas fuentes.
 - `storage.py`: administra la lectura y escritura de los datos actuales e históricos.
+
+**`scripts/update_exchange_rates.sh`**
+
+Activa `.venv`, ejecuta `python -m scraper.main`, agrega toda la carpeta `frontend/` y, si hay cambios, crea un commit `Update Data (AAAA-MM-DD HH:MM:SS)` y hace push. Así también publica cambios manuales de HTML, CSS, JavaScript y otros archivos del frontend. Toda la salida estándar y de error de la ejecución, incluidos scraper y Git, se anexa a `logs/AAAA-MM-DD.log`. Cada ejecución queda delimitada por fecha, hora, PID y estado de salida. La carpeta `logs/` está excluida de Git.
+
+**`.github/workflows/`**
+
+`ci.yml` ejecuta los tests en pull requests y se reutiliza antes de publicar. `deploy-pages.yml` publica únicamente el frontend después de un push a la rama predeterminada; GitHub Actions no ejecuta el scraper.
 
 **`tests/`**
 
@@ -248,17 +261,30 @@ La ejecución requiere conexión a Internet para acceder a las fuentes externas.
 
 Cada entidad conserva un único registro histórico por fecha. Si una ejecución posterior encuentra valores de compra, venta o cotización oficial distintos para esa fecha, reemplaza el registro de esa fecha y sincroniza `current.json` cuando corresponda.
 
+Para ejecutar y publicar los datos desde el entorno virtual, utiliza:
+
+```bash
+bash scripts/update_exchange_rates.sh
+```
+
+El script agrega toda la carpeta `frontend/`; no agrega los logs ni cambios fuera del frontend. Git debe tener configuradas credenciales que permitan hacer push.
+
 ## 9. Automation and deployment
 
-GitHub Actions runs on GitHub-hosted Ubuntu runners. The `CI` workflow tests pushes to `main` and pull requests. The `Scrape and deploy Dólar Bolivia` workflow runs on pushes to the default branch, on a schedule, and through `workflow_dispatch`.
+The scraper runs on the local Linux computer through `scripts/update_exchange_rates.sh`; GitHub Actions does not run the scraper. The script activates `.venv`, executes `python -m scraper.main`, stages all of `frontend/`, and commits and pushes when frontend files changed. This also publishes manual HTML, CSS, and JavaScript edits. All standard output and errors from the scraper and Git are appended to the ignored daily log `logs/YYYY-MM-DD.log`. Each run is marked with start and end timestamps, PID, and exit status.
 
-The scraper schedule is `17 1,3,5,7,9,11 * * *` in the IANA timezone `America/La_Paz`: 01:17, 03:17, 05:17, 07:17, 09:17, and 11:17 local time. GitHub may delay scheduled runs during periods of high load, so these times are targets rather than guaranteed start times.
+To run every two hours starting at 01:17, add this entry with `crontab -e`. Ubuntu cron supports the `CRON_TZ` setting; if another cron implementation ignores it, set the computer's system timezone to `America/La_Paz` instead. See the [Ubuntu crontab manual](https://manpages.ubuntu.com/manpages/noble/man5/crontab.5.html).
 
-On a regular default-branch push, the workflow runs the tests and publishes the static site without scraping. On a scheduled or manual run, it tests, installs `requirements.txt`, runs `python -m scraper.main`, validates `frontend/data/current.json` and all historical JSONL records, commits only changed public data, and deploys the frontend artifact created by that same workflow run. Transient connection errors, timeouts, HTTP 408, 425, 429, and HTTP 5xx responses receive up to five attempts total with configured exponential delays of 3, 7, 15, and 30 seconds plus jitter. Valid `Retry-After` response headers are honored. Persistent scraper or validation failures stop the workflow before commit and deployment. If scraping fails, a diagnostic step reports BCP DNS, TCP, TLS, and HTTP status/header information without printing response content or credentials. The data validation also prevents removal of previously tracked entities or historical dates. A data commit uses the workflow's automatically provided `GITHUB_TOKEN`; it does not start a second push-triggered workflow, so the scraper run publishes its own updated artifact.
+```cron
+CRON_TZ=America/La_Paz
+17 1-23/2 * * * /path/to/cotizacion-dolar-bolivia/scripts/update_exchange_rates.sh
+```
 
-Only `frontend/` is uploaded to GitHub Pages. Relative page, stylesheet, script, current-data, and history URLs are retained so they resolve beneath the repository base path on a project site. The existing three historical charts load their JSONL data from `frontend/data/history/`.
+This runs at 01:17, 03:17, 05:17, 07:17, 09:17, 11:17, 13:17, 15:17, 17:17, 19:17, 21:17, and 23:17. Replace `/path/to/cotizacion-dolar-bolivia` with the absolute repository path. Cron runs the script in that existing local clone; it does not create another checkout. Keep the clone on the remote default branch with its upstream configured so `git push` updates that branch and triggers production deployment. Cron runs as the crontab owner with a minimal environment. An SSH agent is not required when that user's private key is readable at the configured `IdentityFile` path and does not require an interactive passphrase; GitHub must have the matching public key. Logs are written to the repository's ignored `logs/` directory.
 
-To enable publication, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The workflow's `contents: write` permission is limited to the scraper job; publishing uses `pages: write` and `id-token: write`. To run a scraper manually, open **Actions → Scrape and deploy Dólar Bolivia → Run workflow** and select the default branch. No local machine is involved.
+The `CI` workflow runs tests on pull requests and is reused by `Deploy GitHub Pages`. A successful push to the default branch runs the tests and then publishes only `frontend/`; this includes pushes made by the local Bash scraper. Relative page, stylesheet, script, current-data, and history URLs resolve beneath a project site's repository base path. The three historical charts continue to load JSONL data from `frontend/data/history/`.
+
+To enable publication, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The deployment workflow uses `contents: read`, `pages: write`, and `id-token: write`; no personal token is stored in the repository.
 
 ## 10. Validación y normalización de datos
 
@@ -340,7 +366,7 @@ Cada archivo utiliza el formato JSON Lines (JSONL), donde cada línea representa
 
 Los registros se organizan por fecha de cotización. Si se actualiza una cotización correspondiente a una fecha que ya existe, el sistema reemplaza ese registro en lugar de generar duplicados para la misma entidad y fecha.
 
-El repositorio conserva además `data/history/`, de una ubicación anterior. Sus registros no coinciden completamente con `frontend/data/history/`, por lo que se mantiene como archivo legado hasta reconciliar las diferencias; el scraper y el sitio solo usan la ruta canónica bajo `frontend/`.
+La carpeta antigua `data/history/` se eliminó después de verificar que cada registro de cotización legado está representado en `frontend/data/history/`; los archivos canónicos también contienen registros más recientes. El scraper y el sitio usan únicamente la ruta canónica bajo `frontend/`.
 
 ### Integridad del almacenamiento
 

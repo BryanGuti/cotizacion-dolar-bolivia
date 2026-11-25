@@ -8,6 +8,7 @@ The project consists of:
 - A Python-based data collection and validation system.
 - A static frontend built with HTML, CSS, and vanilla JavaScript.
 - Current exchange-rate data and historical JSONL records.
+- A local cron entry point that validates and pushes successful data updates.
 
 Preserve the existing architecture unless a change is explicitly requested and its impact has been evaluated.
 
@@ -22,6 +23,9 @@ scraper/
 
 tests/
 
+scripts/
+└── update_exchange_rates.sh
+
 frontend/
 ├── index.html
 ├── css/
@@ -32,8 +36,6 @@ frontend/
     └── history/
         └── <year>/
             └── <entity>.jsonl
-
-data/history/                 # Legacy archive; not consumed by the application
 
 .github/
 └── workflows/
@@ -48,14 +50,14 @@ README.md
 - `scraper/sources/`: Source-specific extraction modules.
 - `scraper/utils/`: Shared normalization, validation, storage, and logging utilities.
 - `tests/`: Automated Python tests.
+- `scripts/`: Local operational scripts, including the scheduled scraper runner.
 - `frontend/`: Static website.
 - `frontend/css/`: Stylesheets.
 - `frontend/js/`: Frontend application logic and data processing.
 - `frontend/pages/`: Additional frontend pages.
 - `frontend/data/`: Public application data consumed by the frontend.
 - `frontend/data/history/`: Historical JSONL records organized by year.
-- `data/history/`: Legacy records retained until their differences from the canonical data are reconciled.
-- `.github/workflows/`: CI, scheduled scraping, and Pages deployment workflows.
+- `.github/workflows/`: CI and GitHub Pages deployment workflows. GitHub Actions does not run the scraper.
 - `README.md`: Project setup and operating documentation.
 
 ## Architecture and Data Flow
@@ -107,6 +109,14 @@ python -m scraper.main
 ```
 
 The scraper requires network access to retrieve source data.
+
+For scheduled local scraping and data pushes, install the requirements in `.venv` and run:
+
+```bash
+bash scripts/update_exchange_rates.sh
+```
+
+The local runner activates `.venv`, runs `python -m scraper.main`, and stages all of `frontend/` before committing and pushing changes. It appends all output to `logs/YYYY-MM-DD.log`, with start and end markers for each run. The logs directory is ignored by Git. Configure a local cron job for the desired schedule. It relies on the computer's existing non-interactive Git credentials; do not place credentials in the script or crontab.
 
 ### Run Tests
 
