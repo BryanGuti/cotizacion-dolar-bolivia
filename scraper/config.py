@@ -14,6 +14,10 @@ HISTORY_DIR = FRONTEND_DIR / "data" / "history"
 CURRENCY = "USD"
 PRICE_CURRENCY = "BOB"
 
+# Transient scraper failures are retried using these delays plus bounded jitter.
+SCRAPE_RETRY_DELAYS_SECONDS = (3, 7, 15, 30)
+SCRAPE_RETRY_JITTER_SECONDS = 1.0
+
 # Entities to scrape
 ENTITIES = [
     {

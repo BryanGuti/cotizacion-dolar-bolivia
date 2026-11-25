@@ -5,7 +5,12 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from scraper.sources.bcp import scrape
+from scraper.main import SCRAPE_MAX_ATTEMPTS, fetch_quote_with_retries
+from scraper.sources.bcp import (
+    REQUEST_HEADERS,
+    REQUEST_TIMEOUT_SECONDS,
+    scrape,
+)
 
 
 HTML = """
@@ -67,6 +72,50 @@ def test_scrape_uses_configured_url(monkeypatch):
     scrape(ENTITY, SOURCE)
 
     assert mock_get.call_args.args[0] == SOURCE["url"]
+    assert mock_get.call_args.kwargs["headers"] == REQUEST_HEADERS
+    assert mock_get.call_args.kwargs["timeout"] == REQUEST_TIMEOUT_SECONDS
+
+
+def test_connection_reset_retry_makes_one_bcp_request_per_attempt(monkeypatch):
+    mock_get = Mock(
+        side_effect=[
+            requests.ConnectionError("Connection reset by peer."),
+            mock_response(),
+        ]
+    )
+    monkeypatch.setattr("scraper.sources.bcp.requests.get", mock_get)
+    monkeypatch.setattr("scraper.main.time.sleep", lambda _: None)
+    monkeypatch.setattr("scraper.main.random.uniform", lambda *_: 0)
+
+    quote = fetch_quote_with_retries(scrape, ENTITY, SOURCE)
+
+    assert quote["buy"] == Decimal("11.28")
+    assert mock_get.call_count == 2
+
+
+def test_repeated_bcp_connection_resets_make_exactly_configured_attempts(
+    monkeypatch,
+):
+    mock_get = Mock(side_effect=requests.ConnectionError("Connection reset."))
+    monkeypatch.setattr("scraper.sources.bcp.requests.get", mock_get)
+    monkeypatch.setattr("scraper.main.time.sleep", lambda _: None)
+    monkeypatch.setattr("scraper.main.random.uniform", lambda *_: 0)
+
+    with pytest.raises(requests.ConnectionError):
+        fetch_quote_with_retries(scrape, ENTITY, SOURCE)
+
+    assert mock_get.call_count == SCRAPE_MAX_ATTEMPTS
+
+
+def test_bcp_extraction_error_is_not_retried(monkeypatch):
+    mock_get = Mock(return_value=mock_response("<html></html>"))
+    monkeypatch.setattr("scraper.sources.bcp.requests.get", mock_get)
+    monkeypatch.setattr("scraper.main.time.sleep", lambda _: None)
+
+    with pytest.raises(ValueError, match="exchange rate section"):
+        fetch_quote_with_retries(scrape, ENTITY, SOURCE)
+
+    mock_get.assert_called_once()
 
 
 def test_scrape_rejects_missing_container(monkeypatch):

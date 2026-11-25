@@ -10,6 +10,11 @@ from scraper.sources.base import build_quote
 
 
 TIMEZONE = ZoneInfo("America/La_Paz")
+REQUEST_HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Accept": "text/html",
+}
+REQUEST_TIMEOUT_SECONDS = 30
 
 RATE_LABELS = {
     "Dólar Compra": "buy",
@@ -22,11 +27,8 @@ RATE_PATTERN = re.compile(r"^\s*[\d.,]+\s*$")
 def scrape(entity: dict, source: dict) -> dict:
     response = requests.get(
         source["url"],
-        headers={
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "text/html",
-        },
-        timeout=30,
+        headers=REQUEST_HEADERS,
+        timeout=REQUEST_TIMEOUT_SECONDS,
     )
 
     response.raise_for_status()

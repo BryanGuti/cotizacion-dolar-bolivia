@@ -1,9 +1,18 @@
+import math
+import random
 import time
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+from email.utils import parsedate_to_datetime
 
 import requests
 
-from scraper.config import ENTITIES, SOURCES
+from scraper.config import (
+    ENTITIES,
+    SCRAPE_RETRY_DELAYS_SECONDS,
+    SCRAPE_RETRY_JITTER_SECONDS,
+    SOURCES,
+)
 from scraper.sources.registry import get_scraper, has_scraper
 from scraper.utils.logger import get_logger, SUCCESS_LEVEL
 from scraper.utils.validators import (
@@ -14,8 +23,71 @@ from scraper.utils.storage import get_current_record, save_quote
 
 logger = get_logger(__name__)
 
-SCRAPE_MAX_ATTEMPTS = 3
-SCRAPE_RETRY_BASE_DELAY_SECONDS = 1
+SCRAPE_MAX_ATTEMPTS = len(SCRAPE_RETRY_DELAYS_SECONDS) + 1
+
+
+def _retry_after_seconds(error: requests.HTTPError) -> float | None:
+    """Parse a Retry-After delta or HTTP date from a retryable response."""
+
+    response = error.response
+    if response is None:
+        return None
+
+    retry_after = response.headers.get("Retry-After")
+    if not retry_after:
+        return None
+
+    try:
+        delay = float(retry_after)
+        if math.isfinite(delay):
+            return max(0.0, delay)
+    except (OverflowError, TypeError, ValueError):
+        pass
+
+    try:
+        retry_at = parsedate_to_datetime(retry_after)
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        return max(
+            0.0,
+            (retry_at - datetime.now(timezone.utc)).total_seconds(),
+        )
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _is_retryable_error(error: requests.RequestException) -> bool:
+    """Return whether an exception represents a transient request failure."""
+
+    if isinstance(
+        error,
+        (
+            requests.ConnectionError,
+            requests.Timeout,
+            requests.exceptions.ChunkedEncodingError,
+        ),
+    ):
+        return True
+
+    if isinstance(error, requests.HTTPError) and error.response is not None:
+        status_code = error.response.status_code
+        return status_code in {408, 425, 429} or 500 <= status_code <= 599
+
+    return False
+
+
+def _retry_delay(attempt: int, error: requests.RequestException) -> float:
+    """Return the server-requested delay or configured backoff plus jitter."""
+
+    if isinstance(error, requests.HTTPError):
+        retry_after = _retry_after_seconds(error)
+        if retry_after is not None:
+            return retry_after
+
+    delay_index = min(attempt - 1, len(SCRAPE_RETRY_DELAYS_SECONDS) - 1)
+    backoff = SCRAPE_RETRY_DELAYS_SECONDS[delay_index]
+    jitter = random.uniform(0.0, SCRAPE_RETRY_JITTER_SECONDS)
+    return backoff + jitter
 
 
 def fetch_quote_with_retries(
@@ -23,9 +95,17 @@ def fetch_quote_with_retries(
     entity: dict,
     source: dict,
 ) -> dict:
-    """Retry transient connection failures without accepting stale data."""
+    """Retry transient request failures without accepting stale data."""
 
     for attempt in range(1, SCRAPE_MAX_ATTEMPTS + 1):
+        logger.info(
+            "Scrape attempt %d/%d for %s (%s).",
+            attempt,
+            SCRAPE_MAX_ATTEMPTS,
+            entity["name"],
+            entity["id"],
+        )
+
         try:
             quote = scraper(entity, source)
 
@@ -37,14 +117,33 @@ def fetch_quote_with_retries(
 
             return quote
 
-        except (requests.ConnectionError, requests.Timeout) as exc:
-            if attempt == SCRAPE_MAX_ATTEMPTS:
+        except requests.RequestException as exc:
+            if not _is_retryable_error(exc):
+                logger.error(
+                    "Non-retryable request failure on attempt %d/%d for %s (%s): %s",
+                    attempt,
+                    SCRAPE_MAX_ATTEMPTS,
+                    entity["name"],
+                    entity["id"],
+                    exc,
+                )
                 raise
 
-            delay = SCRAPE_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+            if attempt == SCRAPE_MAX_ATTEMPTS:
+                logger.error(
+                    "Scrape attempt %d/%d failed for %s (%s); no retries remain: %s",
+                    attempt,
+                    SCRAPE_MAX_ATTEMPTS,
+                    entity["name"],
+                    entity["id"],
+                    exc,
+                )
+                raise
+
+            delay = _retry_delay(attempt, exc)
             logger.warning(
-                "Temporary network error for %s (%s), attempt %d/%d: %s. "
-                "Retrying in %d second(s).",
+                "Retryable request failure for %s (%s), attempt %d/%d: %s. "
+                "Retrying in %.2f second(s).",
                 entity["name"],
                 entity["id"],
                 attempt,

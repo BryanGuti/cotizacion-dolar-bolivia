@@ -1,9 +1,25 @@
+import json
+import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import requests
 
 from scraper import main
+from scraper.utils import storage
+
+
+def http_error(status_code, headers=None):
+    response = Mock()
+    response.status_code = status_code
+    response.headers = headers or {}
+    return requests.HTTPError(
+        f"HTTP {status_code}",
+        response=response,
+    )
 
 
 class TestMain(unittest.TestCase):
@@ -264,14 +280,45 @@ class TestMain(unittest.TestCase):
             self.quote,
         ]
 
-        with patch.object(main.time, "sleep") as sleep:
+        with patch.object(main.time, "sleep") as sleep, patch.object(
+            main.random, "uniform", return_value=0.5
+        ):
             self.assertEqual(main.main(), 0)
 
         self.assertEqual(self.scraper.call_count, 2)
         self.assertEqual(
             [call.args[0] for call in sleep.call_args_list],
-            [1],
+            [3.5],
         )
+        self.save_mock.assert_called_once_with(self.entity, self.quote)
+
+    def test_transient_timeout_retries_and_succeeds(self):
+        self.scraper.side_effect = [
+            requests.Timeout("Read timed out."),
+            self.quote,
+        ]
+
+        with patch.object(main.time, "sleep") as sleep, patch.object(
+            main.random, "uniform", return_value=0
+        ):
+            self.assertEqual(main.main(), 0)
+
+        self.assertEqual(self.scraper.call_count, 2)
+        sleep.assert_called_once_with(3)
+        self.save_mock.assert_called_once_with(self.entity, self.quote)
+
+    def test_transient_tls_error_retries_and_succeeds(self):
+        self.scraper.side_effect = [
+            requests.exceptions.SSLError("TLS handshake reset."),
+            self.quote,
+        ]
+
+        with patch.object(main.time, "sleep"), patch.object(
+            main.random, "uniform", return_value=0
+        ):
+            self.assertEqual(main.main(), 0)
+
+        self.assertEqual(self.scraper.call_count, 2)
         self.save_mock.assert_called_once_with(self.entity, self.quote)
 
     def test_persistent_connection_error_fails_after_retry_limit(self):
@@ -279,18 +326,138 @@ class TestMain(unittest.TestCase):
             "Connection reset by peer."
         )
 
-        with patch.object(main.time, "sleep") as sleep:
+        with patch.object(main.time, "sleep") as sleep, patch.object(
+            main.random, "uniform", return_value=0.5
+        ):
             self.assertEqual(main.main(), 1)
 
         self.assertEqual(self.scraper.call_count, main.SCRAPE_MAX_ATTEMPTS)
         self.assertEqual(sleep.call_count, main.SCRAPE_MAX_ATTEMPTS - 1)
+        self.assertEqual(
+            [call.args[0] for call in sleep.call_args_list],
+            [3.5, 7.5, 15.5, 30.5],
+        )
         self.save_mock.assert_not_called()
+
+    def test_http_429_respects_retry_after(self):
+        self.scraper.side_effect = [
+            http_error(429, {"Retry-After": "12"}),
+            self.quote,
+        ]
+
+        with patch.object(main.time, "sleep") as sleep, patch.object(
+            main.random, "uniform"
+        ) as jitter:
+            self.assertEqual(main.main(), 0)
+
+        self.assertEqual(self.scraper.call_count, 2)
+        sleep.assert_called_once_with(12.0)
+        jitter.assert_not_called()
+        self.save_mock.assert_called_once_with(self.entity, self.quote)
+
+    def test_http_date_retry_after_is_respected(self):
+        now = datetime(2026, 11, 25, 12, 0, tzinfo=timezone.utc)
+        retry_at = now + timedelta(seconds=45)
+        error = http_error(
+            503,
+            {"Retry-After": format_datetime(retry_at, usegmt=True)},
+        )
+
+        with patch.object(main, "datetime") as datetime_mock:
+            datetime_mock.now.return_value = now
+            self.assertEqual(main._retry_after_seconds(error), 45)
+
+    def test_http_5xx_retries(self):
+        self.scraper.side_effect = [http_error(503), self.quote]
+
+        with patch.object(main.time, "sleep") as sleep, patch.object(
+            main.random, "uniform", return_value=0.25
+        ):
+            self.assertEqual(main.main(), 0)
+
+        self.assertEqual(self.scraper.call_count, 2)
+        sleep.assert_called_once_with(3.25)
+        self.save_mock.assert_called_once_with(self.entity, self.quote)
+
+    def test_permanent_http_4xx_is_not_retried(self):
+        self.scraper.side_effect = http_error(403)
+
+        with patch.object(main.time, "sleep") as sleep:
+            self.assertEqual(main.main(), 1)
+
+        self.scraper.assert_called_once_with(self.entity, self.source)
+        sleep.assert_not_called()
+        self.save_mock.assert_not_called()
+
+    def test_retry_logging_includes_entity_attempt_and_delay(self):
+        self.scraper.side_effect = [
+            requests.ConnectionError("Connection reset."),
+            self.quote,
+        ]
+
+        with patch.object(main.time, "sleep"), patch.object(
+            main.random, "uniform", return_value=0.5
+        ), patch.object(main.logger, "info") as info, patch.object(
+            main.logger, "warning"
+        ) as warning:
+            self.assertEqual(main.main(), 0)
+
+        attempt_logs = [
+            call
+            for call in info.call_args_list
+            if call.args[0].startswith("Scrape attempt")
+        ]
+        self.assertEqual(
+            [(call.args[1], call.args[2]) for call in attempt_logs],
+            [(1, main.SCRAPE_MAX_ATTEMPTS), (2, main.SCRAPE_MAX_ATTEMPTS)],
+        )
+        self.assertEqual(
+            warning.call_args.args[1:5],
+            ("Banco BISA", "bisa", 1, main.SCRAPE_MAX_ATTEMPTS),
+        )
+        self.assertEqual(warning.call_args.args[-1], 3.5)
+
+    def test_retry_then_success_writes_one_valid_history_record(self):
+        self.scraper.side_effect = [
+            requests.ConnectionError("Connection reset."),
+            self.quote,
+        ]
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            data_directory = Path(temporary_directory)
+            current_file = data_directory / "current.json"
+            history_directory = data_directory / "history"
+            with patch.object(
+                storage, "CURRENT_DATA_FILE", current_file
+            ), patch.object(
+                storage, "HISTORY_DIR", history_directory
+            ), patch.object(
+                main, "save_quote", side_effect=storage.save_quote
+            ), patch.object(
+                main.time, "sleep"
+            ), patch.object(
+                main.random, "uniform", return_value=0
+            ):
+                self.assertEqual(main.main(), 0)
+
+            history_file = history_directory / "2026" / "bisa.jsonl"
+            records = [
+                json.loads(line)
+                for line in history_file.read_text(encoding="utf-8").splitlines()
+            ]
+            current_data = json.loads(current_file.read_text(encoding="utf-8"))
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["id"], self.entity["id"])
+        self.assertEqual(len(current_data["entities"]), 1)
+        self.assertEqual(current_data["entities"][0]["buy"], self.quote["buy"])
 
     def test_scraper_returning_non_dictionary_does_not_save_quote(self):
         self.scraper.return_value = None
 
         main.main()
 
+        self.scraper.assert_called_once_with(self.entity, self.source)
         self.save_mock.assert_not_called()
 
     # ---------------------------------------------------------
