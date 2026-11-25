@@ -18,6 +18,8 @@ Preserve the existing architecture unless a change is explicitly requested and i
 scraper/
 ├── main.py
 ├── config.py
+├── diagnose_bcp.py
+├── validate_public_data.py
 ├── sources/
 └── utils/
 

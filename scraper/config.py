@@ -80,12 +80,10 @@ ENTITIES = [
 # Data sources
 SOURCES = {
     "bcb": {
-        # "url": "https://www.bcb.gob.bo/",
         "url": "https://www.bcb.gob.bo/librerias/indicadores/otras/ultimo.php",
         "method": "requests",
     },
     "bmsc": {
-        # "url": "https://www.bmsc.com.bo/",
         "url": "https://backportal.bmsc.com.bo:1443/api/bmscservices/tipotre",
         "method": "requests",
     },
@@ -106,7 +104,6 @@ SOURCES = {
         "method": "requests",
     },
     "fie": {
-        # "url": "https://www.bancofie.com.bo/",
         "url": "https://www.bancofie.com.bo/api/tcl",
         "method": "requests",
     },

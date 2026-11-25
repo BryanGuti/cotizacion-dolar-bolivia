@@ -59,6 +59,12 @@ class TestFrontendContract(unittest.TestCase):
                         target = page
                     self.assertTrue(target.is_file(), f"Broken local link: {link}")
 
+        index = (FRONTEND / "index.html").read_text(encoding="utf-8")
+        self.assertRegex(
+            index,
+            r"chart\.js@\d+\.\d+\.\d+/dist/chart\.umd\.min\.js",
+        )
+
     def test_compare_script_dom_references_exist(self):
         _, parser = self.parse_page("pages/compare.html")
         script = (FRONTEND / "js/compare.js").read_text(encoding="utf-8")

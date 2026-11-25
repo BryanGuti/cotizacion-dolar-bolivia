@@ -86,9 +86,6 @@ dolar-bolivia/
 │               ├── bcb.jsonl
 │               └── ...
 │
-├── data/
-│   └── history/              # Archivo legado conservado; no lo consume la aplicación
-│
 ├── scraper/
 │   ├── main.py
 │   ├── config.py
@@ -139,6 +136,10 @@ Es el punto de entrada del programa. Coordina la ejecución de los scrapers, ges
 **`scraper/config.py`**
 
 Contiene la configuración general del proyecto, las entidades financieras, las fuentes de información y las rutas utilizadas para almacenar los datos.
+
+**`scraper/diagnose_bcp.py`** y **`scraper/validate_public_data.py`**
+
+Son utilidades operativas opcionales: una diagnostica la conexión con BCP y la otra comprueba la integridad de los archivos públicos y su historial. Se pueden ejecutar con `python -m scraper.diagnose_bcp` y `python -m scraper.validate_public_data`.
 
 **`scraper/sources/`**
 
@@ -365,8 +366,6 @@ frontend/data/history/
 Cada archivo utiliza el formato JSON Lines (JSONL), donde cada línea representa un registro independiente.
 
 Los registros se organizan por fecha de cotización. Si se actualiza una cotización correspondiente a una fecha que ya existe, el sistema reemplaza ese registro en lugar de generar duplicados para la misma entidad y fecha.
-
-La carpeta antigua `data/history/` se eliminó después de verificar que cada registro de cotización legado está representado en `frontend/data/history/`; los archivos canónicos también contienen registros más recientes. El scraper y el sitio usan únicamente la ruta canónica bajo `frontend/`.
 
 ### Integridad del almacenamiento
 
