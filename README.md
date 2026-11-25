@@ -118,7 +118,6 @@ dolar-bolivia/
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml
-│       ├── deploy-pages.yml
 │       └── scrape-and-deploy.yml
 │
 ├── .gitignore
@@ -249,13 +248,17 @@ La ejecución requiere conexión a Internet para acceder a las fuentes externas.
 
 Cada entidad conserva un único registro histórico por fecha. Si una ejecución posterior encuentra valores de compra, venta o cotización oficial distintos para esa fecha, reemplaza el registro de esa fecha y sincroniza `current.json` cuando corresponda.
 
-## 9. Automatización y publicación
+## 9. Automation and deployment
 
-GitHub Actions ejecuta las pruebas unitarias en cada push y pull request hacia `main`. Las pruebas de integración que consultan directamente al BCB se mantienen para ejecución manual y no bloquean CI cuando el servicio externo o la conexión no están disponibles. El scraper programado se ejecuta a la 01:00 y cada dos horas hasta las 11:00, hora de Bolivia (UTC-4). GitHub Actions interpreta el cron en UTC; el horario configurado equivale a 05:00, 07:00, 09:00, 11:00, 13:00 y 15:00 UTC.
+GitHub Actions runs on GitHub-hosted Ubuntu runners. The `CI` workflow tests pushes to `main` and pull requests. The `Scrape and deploy Dólar Bolivia` workflow runs on pushes to the default branch, on a schedule, and through `workflow_dispatch`.
 
-Después de cada ejecución, el workflow actualiza los datos bajo `frontend/data/`, guarda los cambios en Git cuando los hay y despliega `frontend/` en GitHub Pages. También se puede iniciar desde **Actions → Scrape and deploy Dólar Bolivia → Run workflow**.
+The scraper schedule is `17 1,3,5,7,9,11 * * *` in the IANA timezone `America/La_Paz`: 01:17, 03:17, 05:17, 07:17, 09:17, and 11:17 local time. GitHub may delay scheduled runs during periods of high load, so these times are targets rather than guaranteed start times.
 
-Para habilitar la publicación en el repositorio, configura **Settings → Pages → Build and deployment → Source: GitHub Actions**. El workflow publica únicamente el contenido de `frontend/`.
+On a regular default-branch push, the workflow runs the tests and publishes the static site without scraping. On a scheduled or manual run, it tests, installs `requirements.txt`, runs `python -m scraper.main`, validates `frontend/data/current.json` and all historical JSONL records, commits only changed public data, and deploys the frontend artifact created by that same workflow run. Scraper or validation failures stop the workflow before commit and deployment. The data validation also prevents removal of previously tracked entities or historical dates. A data commit uses the workflow's automatically provided `GITHUB_TOKEN`; it does not start a second push-triggered workflow, so the scraper run publishes its own updated artifact.
+
+Only `frontend/` is uploaded to GitHub Pages. Relative page, stylesheet, script, current-data, and history URLs are retained so they resolve beneath the repository base path on a project site. The existing three historical charts load their JSONL data from `frontend/data/history/`.
+
+To enable publication, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The workflow's `contents: write` permission is limited to the scraper job; publishing uses `pages: write` and `id-token: write`. To run a scraper manually, open **Actions → Scrape and deploy Dólar Bolivia → Run workflow** and select the default branch. No local machine is involved.
 
 ## 10. Validación y normalización de datos
 

@@ -1,23 +1,25 @@
 name: Scrape and deploy Dólar Bolivia
 
 on:
+  push:
   schedule:
-    # 01:00, 03:00, 05:00, 07:00, 09:00 and 11:00 in Bolivia (UTC-4).
-    - cron: "0 5,7,9,11,13,15 * * *"
+    - cron: "17 1,3,5,7,9,11 * * *"
+      timezone: "America/La_Paz"
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
 
 concurrency:
-  group: github-pages
+  group: dolar-bolivia-production
   cancel-in-progress: false
 
 jobs:
-  scrape:
+  test:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -27,39 +29,110 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install requirements
         run: python -m pip install -r requirements.txt
 
-      - name: Run tests
+      - name: Run automated tests
         run: python -m pytest -v
+
+  scrape:
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
 
       - name: Collect exchange rates
         run: python -m scraper.main
 
-      - name: Commit updated public data
+      - name: Validate public current and historical data
+        run: python -m scraper.validate_public_data
+
+      - name: Commit and push changed public data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/data/current.json frontend/data/history/
-          if ! git diff --cached --quiet; then
+          git add --all -- frontend/data/current.json frontend/data/history/
+          if ! git diff --cached --quiet -- frontend/data/current.json frontend/data/history/; then
             git commit -m "Update exchange rate data"
-            git push
+            git push origin "HEAD:${GITHUB_REF}"
+          else
+            echo "No public data changes to commit."
           fi
+
+      - name: Package the updated frontend
+        run: tar -czf "${RUNNER_TEMP}/frontend.tar.gz" -C frontend .
+
+      - name: Upload updated frontend for this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraped-frontend
+          path: ${{ runner.temp }}/frontend.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  prepare-pages:
+    if: >-
+      always() &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      needs.test.result == 'success' &&
+      (github.event_name == 'push' || needs.scrape.result == 'success')
+    needs: [test, scrape]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      actions: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Download frontend from the scraper run
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          name: scraped-frontend
+          path: ${{ runner.temp }}/scraped-frontend
+
+      - name: Restore the frontend artifact
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: tar -xzf "${RUNNER_TEMP}/scraped-frontend/frontend.tar.gz" -C frontend
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload frontend artifact
+      - name: Upload frontend only
         uses: actions/upload-pages-artifact@v3
         with:
           path: frontend
 
   deploy:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: prepare-pages
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: scrape
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

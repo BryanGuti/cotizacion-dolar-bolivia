@@ -2,7 +2,7 @@ import re
 import unittest
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -74,6 +74,58 @@ class TestFrontendContract(unittest.TestCase):
         self.assertIn('new URL("../data/current.json", SCRIPT_DIRECTORY)', source)
         self.assertIn('new URL("../data/history/", SCRIPT_DIRECTORY)', source)
         self.assertNotIn('`/data/history/', source)
+
+    def test_assets_and_data_resolve_under_a_github_pages_project_path(self):
+        project_url = "https://example.github.io/dolar-bolivia/"
+        index_url = urljoin(project_url, "index.html")
+        compare_url = urljoin(project_url, "pages/compare.html")
+
+        for page_url, asset in (
+            (index_url, "./css/styles.css"),
+            (index_url, "./js/data.js"),
+            (compare_url, "../css/styles.css"),
+            (compare_url, "../js/data.js"),
+        ):
+            resolved = urljoin(page_url, asset)
+            self.assertTrue(
+                urlparse(resolved).path.startswith("/dolar-bolivia/"),
+                f"Asset escaped the Pages project base path: {resolved}",
+            )
+            local_path = FRONTEND / urlparse(resolved).path.removeprefix(
+                "/dolar-bolivia/"
+            )
+            self.assertTrue(local_path.is_file(), f"Missing asset: {asset}")
+
+        compare_data_script = urljoin(compare_url, "../js/data.js")
+        script_directory = urljoin(compare_data_script, ".")
+        current_url = urljoin(script_directory, "../data/current.json")
+        history_paths = sorted((FRONTEND / "data/history").glob("*/*.jsonl"))
+        for resolved in (
+            current_url,
+            *(
+                urljoin(
+                    script_directory,
+                    f"../data/history/{path.relative_to(FRONTEND / 'data/history')}",
+                )
+                for path in history_paths
+            ),
+        ):
+            self.assertTrue(
+                urlparse(resolved).path.startswith("/dolar-bolivia/"),
+                f"Data URL escaped the Pages project base path: {resolved}",
+            )
+            local_path = FRONTEND / urlparse(resolved).path.removeprefix(
+                "/dolar-bolivia/"
+            )
+            self.assertTrue(local_path.is_file(), f"Missing data resource: {resolved}")
+
+        _, home_parser = self.parse_page("index.html")
+        self.assertTrue(
+            {"rates-chart", "money-chart", "percentage-chart"}.issubset(
+                home_parser.ids
+            ),
+            "The dashboard must retain all three historical chart canvases.",
+        )
 
 
 if __name__ == "__main__":

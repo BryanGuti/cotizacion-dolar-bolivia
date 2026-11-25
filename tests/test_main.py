@@ -81,6 +81,10 @@ class TestMain(unittest.TestCase):
         with patch.object(main, "ENTITIES", []):
             self.assertFalse(main.validate_configuration())
 
+    def test_invalid_configuration_returns_failure_status(self):
+        with patch.object(main, "ENTITIES", []):
+            self.assertEqual(main.main(), 1)
+
     def test_validate_configuration_rejects_non_list_entities(self):
         with patch.object(main, "ENTITIES", None):
             self.assertFalse(main.validate_configuration())
@@ -144,7 +148,7 @@ class TestMain(unittest.TestCase):
     # ---------------------------------------------------------
 
     def test_successful_entity_is_scraped_again_to_capture_updated_rates(self):
-        main.main()
+        self.assertEqual(main.main(), 0)
 
         self.scraper.assert_called_once_with(self.entity, self.source)
         self.save_mock.assert_called_once_with(self.entity, self.quote)
@@ -223,7 +227,7 @@ class TestMain(unittest.TestCase):
     def test_entity_without_registered_scraper_is_pending(self):
         self.has_scraper_mock.return_value = False
 
-        main.main()
+        self.assertEqual(main.main(), 1)
 
         self.scraper.assert_not_called()
         self.save_mock.assert_not_called()
@@ -247,7 +251,7 @@ class TestMain(unittest.TestCase):
             "Connection failed."
         )
 
-        main.main()
+        self.assertEqual(main.main(), 1)
 
         self.scraper.assert_called_once()
         self.save_mock.assert_not_called()

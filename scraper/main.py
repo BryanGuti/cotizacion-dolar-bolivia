@@ -229,8 +229,8 @@ def log_execution_summary(
         )
 
 
-def main() -> None:
-    """Run the daily exchange-rate scraping workflow."""
+def main() -> int:
+    """Run the scraper and return a failing status for incomplete runs."""
 
     separator = "=" * 60
 
@@ -240,7 +240,7 @@ def main() -> None:
 
     if not validate_configuration():
         logger.critical("Configuration validation failed.")
-        return
+        return 1
 
     logger.info("Configured entities: %d", len(ENTITIES))
     logger.info("-" * 60)
@@ -359,6 +359,8 @@ def main() -> None:
         updated_today=updated_today_count,
     )
 
+    return 1 if failed_count or pending_count else 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
