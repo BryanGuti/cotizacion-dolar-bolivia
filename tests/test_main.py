@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import Mock, patch
 
+import requests
+
 from scraper import main
 
 
@@ -254,6 +256,34 @@ class TestMain(unittest.TestCase):
         self.assertEqual(main.main(), 1)
 
         self.scraper.assert_called_once()
+        self.save_mock.assert_not_called()
+
+    def test_transient_connection_error_retries_and_succeeds(self):
+        self.scraper.side_effect = [
+            requests.ConnectionError("Connection reset by peer."),
+            self.quote,
+        ]
+
+        with patch.object(main.time, "sleep") as sleep:
+            self.assertEqual(main.main(), 0)
+
+        self.assertEqual(self.scraper.call_count, 2)
+        self.assertEqual(
+            [call.args[0] for call in sleep.call_args_list],
+            [1],
+        )
+        self.save_mock.assert_called_once_with(self.entity, self.quote)
+
+    def test_persistent_connection_error_fails_after_retry_limit(self):
+        self.scraper.side_effect = requests.ConnectionError(
+            "Connection reset by peer."
+        )
+
+        with patch.object(main.time, "sleep") as sleep:
+            self.assertEqual(main.main(), 1)
+
+        self.assertEqual(self.scraper.call_count, main.SCRAPE_MAX_ATTEMPTS)
+        self.assertEqual(sleep.call_count, main.SCRAPE_MAX_ATTEMPTS - 1)
         self.save_mock.assert_not_called()
 
     def test_scraper_returning_non_dictionary_does_not_save_quote(self):

@@ -1,4 +1,7 @@
+import time
 from decimal import Decimal, InvalidOperation
+
+import requests
 
 from scraper.config import ENTITIES, SOURCES
 from scraper.sources.registry import get_scraper, has_scraper
@@ -10,6 +13,48 @@ from scraper.utils.validators import (
 from scraper.utils.storage import get_current_record, save_quote
 
 logger = get_logger(__name__)
+
+SCRAPE_MAX_ATTEMPTS = 3
+SCRAPE_RETRY_BASE_DELAY_SECONDS = 1
+
+
+def fetch_quote_with_retries(
+    scraper,
+    entity: dict,
+    source: dict,
+) -> dict:
+    """Retry transient connection failures without accepting stale data."""
+
+    for attempt in range(1, SCRAPE_MAX_ATTEMPTS + 1):
+        try:
+            quote = scraper(entity, source)
+
+            if not isinstance(quote, dict):
+                raise ValueError(
+                    "Scraper must return a dictionary containing "
+                    "the quotation."
+                )
+
+            return quote
+
+        except (requests.ConnectionError, requests.Timeout) as exc:
+            if attempt == SCRAPE_MAX_ATTEMPTS:
+                raise
+
+            delay = SCRAPE_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+            logger.warning(
+                "Temporary network error for %s (%s), attempt %d/%d: %s. "
+                "Retrying in %d second(s).",
+                entity["name"],
+                entity["id"],
+                attempt,
+                SCRAPE_MAX_ATTEMPTS,
+                exc,
+                delay,
+            )
+            time.sleep(delay)
+
+    raise RuntimeError("Scraper retry loop exited unexpectedly.")
 
 
 def changed_rate_keys(
@@ -298,13 +343,7 @@ def main() -> int:
                 entity_id,
             )
 
-            quote = scraper(entity, source)
-
-            if not isinstance(quote, dict):
-                raise ValueError(
-                    "Scraper must return a dictionary containing "
-                    "the quotation."
-                )
+            quote = fetch_quote_with_retries(scraper, entity, source)
 
         except Exception:
             logger.exception(
