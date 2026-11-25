@@ -140,6 +140,26 @@ class TestStorage(unittest.TestCase):
         self.assertEqual(len(history), 1)
         self.assertEqual(history[0]["id"], "bisa")
 
+    def test_unchanged_quote_does_not_rewrite_current_or_history(self):
+        entity = self.make_entity()
+        quote = self.make_quote()
+        save_quote(entity, quote)
+
+        current_before = self.current_file.read_bytes()
+        history_file = self.history_dir / "2026" / "bisa.jsonl"
+        history_before = history_file.read_bytes()
+        repeated_quote = {
+            **quote,
+            "captured_at": "2026-11-23T09:30:00-04:00",
+        }
+
+        with patch("scraper.utils.storage._atomic_write") as atomic_write:
+            save_quote(entity, repeated_quote)
+
+        atomic_write.assert_not_called()
+        self.assertEqual(self.current_file.read_bytes(), current_before)
+        self.assertEqual(history_file.read_bytes(), history_before)
+
     def test_updates_same_entity_and_date_without_duplicate(self):
         entity = self.make_entity()
 

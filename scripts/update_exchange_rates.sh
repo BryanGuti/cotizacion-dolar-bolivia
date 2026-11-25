@@ -4,8 +4,12 @@ set -euo pipefail
 REPOSITORY_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPOSITORY_ROOT"
 
+umask 077
 mkdir -p logs
+chmod 700 logs
 LOG_FILE="logs/$(date +%F).log"
+touch "$LOG_FILE"
+chmod 600 "$LOG_FILE"
 exec >>"$LOG_FILE" 2>&1
 
 RUN_START="$(date '+%Y-%m-%d %H:%M:%S %Z')"
@@ -23,7 +27,7 @@ printf '\n\n===== RUN START %s | pid=%s =====\n' "$RUN_START" "$$"
 # Cron does not inherit the GNOME Keyring SSH agent socket from the desktop.
 if [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
     KEYRING_SSH_SOCKET="/run/user/$(id -u)/keyring/ssh"
-    if [[ -S "$KEYRING_SSH_SOCKET" ]]; then
+    if [[ -S "$KEYRING_SSH_SOCKET" && -O "$KEYRING_SSH_SOCKET" ]]; then
         export SSH_AUTH_SOCK="$KEYRING_SSH_SOCKET"
         echo "Using the SSH agent socket from GNOME Keyring."
     fi
@@ -32,13 +36,16 @@ fi
 source .venv/bin/activate
 python -m scraper.main
 
-git add -- frontend/
-if git diff --cached --quiet -- frontend/; then
-    echo "No frontend changes; nothing to commit."
+FRONTEND_CHANGES="$(git status --porcelain -- frontend/)"
+if [[ -n "$FRONTEND_CHANGES" ]]; then
+    git add -- frontend/
+    if git diff --cached --quiet -- frontend/; then
+        echo "No stageable frontend changes; skipping commit and push."
+    else
+        git commit -m "Update Data ($(date '+%Y-%m-%d %H:%M:%S'))" -- frontend/
+        git push
+        echo "Frontend changes committed and pushed."
+    fi
 else
-    git commit -m "Update Data ($(date '+%Y-%m-%d %H:%M:%S'))" -- frontend/
+    echo "No frontend changes; skipping add, commit, and push."
 fi
-
-# Push even when this run made no new commit, so a previous failed push retries.
-git push
-echo "Update committed and pushed."

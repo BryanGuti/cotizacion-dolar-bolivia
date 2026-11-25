@@ -173,6 +173,25 @@ def _build_record(entity: dict, quote: dict) -> dict:
     return record
 
 
+def _same_quote_data(first: dict, second: dict) -> bool:
+    """Compare quotation data while ignoring the observation timestamp."""
+
+    def comparable(record: dict) -> str:
+        values = {
+            key: value
+            for key, value in record.items()
+            if key != "captured_at"
+        }
+        return json.dumps(
+            values,
+            ensure_ascii=False,
+            sort_keys=True,
+            default=_json_compatible,
+        )
+
+    return comparable(first) == comparable(second)
+
+
 def _update_current(record: dict) -> bool:
     """
     Insert or update an entity's latest quotation.
@@ -181,7 +200,7 @@ def _update_current(record: dict) -> bool:
 
     Returns:
         True if current.json was modified.
-        False if the incoming quotation was older.
+        False if the incoming quotation was older or unchanged.
     """
 
     data = _read_current_data()
@@ -203,6 +222,9 @@ def _update_current(record: dict) -> bool:
         existing_record = entities[existing_index]
 
         if record["date"] < existing_record["date"]:
+            return False
+
+        if _same_quote_data(existing_record, record):
             return False
 
         entities[existing_index] = record
@@ -295,6 +317,8 @@ def _update_history(record: dict) -> None:
     for index, existing in enumerate(records):
 
         if existing.get("date") == record_date:
+            if _same_quote_data(existing, record):
+                return
             records[index] = record
             updated = True
             break
