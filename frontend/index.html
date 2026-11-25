@@ -1,0 +1,444 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="description"
+        content="Consulta y compara las cotizaciones del dólar estadounidense en Bolivia."
+    >
+
+    <title>Dólar Bolivia | Cotizaciones</title>
+
+    <link rel="stylesheet" href="./css/styles.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <script src="./js/data.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="./js/app.js" defer></script>
+</head>
+
+<body>
+
+    <div class="app">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header__brand">
+                <a href="./index.html" class="header__logo">
+                    Dólar Bolivia
+                </a>
+            </div>
+
+            <nav class="header__navigation" aria-label="Navegación principal">
+                <a href="./index.html" class="nav-link nav-link--active">
+                    Inicio
+                </a>
+
+                <a href="./pages/compare.html" class="nav-link">
+                    Comparar
+                </a>
+            </nav>
+        </header>
+
+        <!-- Main dashboard -->
+        <main class="dashboard">
+
+            <!-- Fixed dashboard section -->
+            <section class="dashboard__fixed">
+
+                <!-- Official rate -->
+                <section class="official-rate" aria-labelledby="official-title">
+
+                    <div class="official-rate__header">
+                        <h1 id="official-title">
+                            Cotización oficial
+                        </h1>
+
+                        <span class="official-rate__source">
+                            Banco Central de Bolivia
+                        </span>
+                    </div>
+
+                    <div class="official-rate__value">
+                        <span id="official-rate">--</span>
+                        <span class="official-rate__currency">BOB</span>
+                    </div>
+
+                    <div class="official-rate__metadata">
+                        <span>
+                            Fecha:
+                            <time id="official-date">--</time>
+                        </span>
+
+                        <span>
+                            Actualizado:
+                            <time id="updated-at">--</time>
+                        </span>
+                    </div>
+
+                </section>
+
+                <!-- Operation selector -->
+                <section class="controls">
+
+                    <div class="control-group">
+                        <h2 class="control-group__title">
+                            Operación
+                        </h2>
+
+                        <div
+                            class="segmented-control"
+                            role="group"
+                            aria-label="Seleccionar operación"
+                        >
+                            <button
+                                type="button"
+                                class="segmented-control__button is-active"
+                                data-operation="buy"
+                                aria-pressed="true"
+                            >
+                                Comprar USD
+                            </button>
+
+                            <button
+                                type="button"
+                                class="segmented-control__button"
+                                data-operation="sell"
+                                aria-pressed="false"
+                            >
+                                Vender USD
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h2 class="control-group__title">
+                            Mostrar diferencias
+                        </h2>
+
+                        <div
+                            class="segmented-control"
+                            role="group"
+                            aria-label="Seleccionar formato de diferencias"
+                        >
+                            <button
+                                type="button"
+                                class="segmented-control__button is-active"
+                                data-display="money"
+                                aria-pressed="true"
+                            >
+                                Monetario (Bs.)
+                            </button>
+
+                            <button
+                                type="button"
+                                class="segmented-control__button"
+                                data-display="percentage"
+                                aria-pressed="false"
+                            >
+                                Porcentaje (%)
+                            </button>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- Entity list heading -->
+                <section class="entity-list-header">
+
+                    <h2 class="entity-list-header__title">
+                        Entidades financieras
+                    </h2>
+
+                    <div class="entity-list-header__columns">
+                        <span>Entidad</span>
+
+                        <div class="entity-list-header__rates">
+                            <span>Compra</span>
+                            <span>Venta</span>
+                        </div>
+                    </div>
+
+                </section>
+
+            </section>
+
+            <!-- Scrollable entity list -->
+            <section
+                class="entity-list"
+                id="entity-list"
+                aria-label="Cotizaciones de entidades financieras"
+                aria-live="polite"
+                aria-busy="true"
+            >
+
+                <div class="entity-list__loading" id="loading-state">
+                    Cargando cotizaciones...
+                </div>
+
+            </section>
+
+        </main>
+
+        <!-- Entity detail modal -->
+        <div
+            class="modal"
+            id="entity-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-entity-name"
+            aria-hidden="true"
+            hidden
+        >
+            <div class="modal__backdrop" data-modal-close></div>
+
+            <div class="modal__container">
+
+                <div class="modal__header">
+
+                    <div>
+                        <span class="modal__eyebrow">
+                            DETALLES DE COTIZACIÓN
+                        </span>
+
+                        <h2
+                            class="modal__title"
+                            id="modal-entity-name"
+                        >
+                            Entidad financiera
+                        </h2>
+
+                        <time
+                            class="modal__date"
+                            id="modal-entity-date"
+                        >
+                            --
+                        </time>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="modal__close"
+                        id="modal-close"
+                        aria-label="Cerrar detalles"
+                    >
+                        &times;
+                    </button>
+
+                </div>
+
+                <!-- Rates -->
+                <section class="modal__section">
+
+                    <h3 class="modal__section-title">
+                        Cotizaciones actuales
+                    </h3>
+
+                    <div class="modal__rates">
+
+                        <article class="modal-rate">
+
+                            <span class="modal-rate__label">
+                                Compra de USD
+                            </span>
+
+                            <strong
+                                class="modal-rate__value"
+                                id="modal-buy"
+                            >
+                                --
+                            </strong>
+
+                            <div class="modal-rate__differences">
+
+                                <span
+                                    class="modal-rate__difference"
+                                    id="modal-buy-money"
+                                >
+                                    --
+                                </span>
+
+                                <span
+                                    class="modal-rate__difference"
+                                    id="modal-buy-percentage"
+                                >
+                                    --
+                                </span>
+
+                            </div>
+
+                        </article>
+
+                        <article class="modal-rate">
+
+                            <span class="modal-rate__label">
+                                Venta de USD
+                            </span>
+
+                            <strong
+                                class="modal-rate__value"
+                                id="modal-sell"
+                            >
+                                --
+                            </strong>
+
+                            <div class="modal-rate__differences">
+
+                                <span
+                                    class="modal-rate__difference"
+                                    id="modal-sell-money"
+                                >
+                                    --
+                                </span>
+
+                                <span
+                                    class="modal-rate__difference"
+                                    id="modal-sell-percentage"
+                                >
+                                    --
+                                </span>
+
+                            </div>
+
+                        </article>
+
+                    </div>
+
+                </section>
+
+                <!-- Official reference -->
+                <section class="modal__official">
+
+                    <div>
+                        <span class="modal__official-label">
+                            Cotización oficial BCB
+                        </span>
+
+                        <strong
+                            class="modal__official-value"
+                            id="modal-official-rate"
+                        >
+                            --
+                        </strong>
+                    </div>
+
+                    <span
+                        class="modal__official-date"
+                        id="modal-official-date"
+                    >
+                        --
+                    </span>
+
+                </section>
+
+                <!-- Historical charts -->
+                <section class="modal__section modal__history">
+
+                    <h3 class="modal__section-title">
+                        Historial de cotizaciones
+                    </h3>
+
+                    <div class="modal__chart-periods" role="group" aria-label="Período del historial">
+
+                        <button type="button" data-period="7d">
+                            7 días
+                        </button>
+
+                        <button type="button" data-period="30d">
+                            30 días
+                        </button>
+
+                        <button type="button" data-period="90d">
+                            90 días
+                        </button>
+
+                        <button type="button" data-period="6mo">
+                            6 meses
+                        </button>
+
+                        <button type="button" data-period="1y">
+                            1 año
+                        </button>
+
+                        <button type="button" data-period="all" class="is-active">
+                            Todo
+                        </button>
+
+                    </div>
+
+                    <p id="modal-chart-status" class="modal__chart-status" aria-live="polite">
+                        Cargando historial...
+                    </p>
+
+                    <div class="modal__chart-container">
+                        <h4>Evolución de cotizaciones</h4>
+
+                        <div class="modal__chart-canvas">
+                            <canvas id="rates-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="modal__chart-container">
+                        <h4>Diferencia respecto al BCB (Bs.)</h4>
+
+                        <div class="modal__chart-canvas">
+                            <canvas id="money-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="modal__chart-container">
+                        <h4>Diferencia respecto al BCB (%)</h4>
+
+                        <div class="modal__chart-canvas">
+                            <canvas id="percentage-chart"></canvas>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- Comparison action -->
+                <div class="modal__actions">
+
+                    <button
+                        type="button"
+                        class="modal__compare-button"
+                        id="modal-compare"
+                    >
+                        Comparar esta entidad
+                    </button>
+
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- Footer -->
+        <footer class="footer">
+
+            <p class="footer__disclaimer">
+                Las cotizaciones son referenciales y pueden variar.
+                Verifica siempre los valores con la entidad correspondiente.
+                Esta plataforma no constituye asesoramiento financiero.
+            </p>
+
+            <p class="footer__credit">
+                Dólar Bolivia
+            </p>
+
+        </footer>
+
+    </div>
+
+</body>
+</html>

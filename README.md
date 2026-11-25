@@ -69,8 +69,11 @@ El proyecto utiliza una arquitectura modular que separa la extracción de inform
 ```text
 dolar-bolivia/
 │
-├── docs/
+├── frontend/
 │   ├── index.html
+│   ├── assets/
+│   ├── pages/
+│   │   └── compare.html
 │   ├── css/
 │   │   └── styles.css
 │   ├── js/
@@ -151,7 +154,7 @@ Contiene las herramientas compartidas por el sistema.
 
 Contiene las pruebas automatizadas destinadas a comprobar el comportamiento de los módulos, scrapers y componentes del sistema.
 
-**`docs/`**
+**`frontend/`**
 
 Contiene los recursos del frontend estático y el archivo de datos utilizado para consultar las cotizaciones actuales.
 
@@ -280,7 +283,7 @@ El proyecto mantiene dos niveles principales de almacenamiento.
 El archivo:
 
 ```text
-docs/data/current.json
+frontend/data/current.json
 ```
 
 Contiene la información actual almacenada para las entidades financieras.

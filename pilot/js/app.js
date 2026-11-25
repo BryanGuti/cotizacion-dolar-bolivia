@@ -1,5 +1,5 @@
 
-const DATA_URL = "../docs/data/current.json";
+const DATA_URL = "../frontend/data/current.json";
 
 const elements = {
     connectionStatus: document.querySelector("#connection-status"),

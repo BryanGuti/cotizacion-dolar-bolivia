@@ -4,7 +4,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SCRAPER_DIR = BASE_DIR / "scraper"
-DOCS_DIR = BASE_DIR / "docs"
+DOCS_DIR = BASE_DIR / "frontend"
 DATA_DIR = BASE_DIR / "data"
 
 # Output files
