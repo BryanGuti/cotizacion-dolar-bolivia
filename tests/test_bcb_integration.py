@@ -1,9 +1,12 @@
 
+import pytest
+
 from scraper.config import SOURCES
 from scraper.sources.bcb import scrape
 from scraper.utils.validators import validate_quote
 
 
+@pytest.mark.integration
 def test_bcb_scraper_integration():
     entity = {
         "id": "bcb",

@@ -25,11 +25,6 @@ class TestMain(unittest.TestCase):
             "sell": 6.96,
         }
 
-        self.progress = {
-            "date": "2026-11-24",
-            "entities": {},
-        }
-
         self.scraper = Mock(return_value=self.quote)
 
         self.patches = [
@@ -38,28 +33,6 @@ class TestMain(unittest.TestCase):
                 main,
                 "SOURCES",
                 {"bisa": self.source},
-            ),
-            patch.object(
-                main,
-                "get_today",
-                return_value="2026-11-24",
-            ),
-            patch.object(
-                main,
-                "load_progress",
-                return_value=self.progress,
-            ),
-            patch.object(
-                main,
-                "is_entity_completed",
-                side_effect=lambda progress, entity_id: (
-                    progress["entities"].get(entity_id) == "success"
-                ),
-            ),
-            patch.object(
-                main,
-                "repair_quote_storage",
-                return_value=False,
             ),
             patch.object(
                 main,
@@ -77,11 +50,6 @@ class TestMain(unittest.TestCase):
                 return_value=(True, []),
             ),
             patch.object(main, "save_quote"),
-            patch.object(
-                main,
-                "update_entity_status",
-                side_effect=self.update_status,
-            ),
         ]
 
         self.mocks = [
@@ -92,23 +60,15 @@ class TestMain(unittest.TestCase):
         (
             self.entities_mock,
             self.sources_mock,
-            self.today_mock,
-            self.progress_mock,
-            self.completed_mock,
-            self.repair_mock,
             self.has_scraper_mock,
             self.get_scraper_mock,
             self.validate_mock,
             self.save_mock,
-            self.update_mock,
         ) = self.mocks
 
     def tearDown(self):
         for item in reversed(self.patches):
             item.stop()
-
-    def update_status(self, progress, entity_id, status):
-        progress["entities"][entity_id] = status
 
     # ---------------------------------------------------------
     # Configuration validation
@@ -180,112 +140,61 @@ class TestMain(unittest.TestCase):
             self.assertFalse(main.validate_configuration())
 
     # ---------------------------------------------------------
-    # Successful execution and storage recovery
+    # Successful execution
     # ---------------------------------------------------------
 
-    def test_successful_entity_with_complete_storage_is_skipped(self):
-        self.progress["entities"]["bisa"] = "success"
-        self.repair_mock.return_value = True
-
+    def test_successful_entity_is_scraped_again_to_capture_updated_rates(self):
         main.main()
 
-        self.repair_mock.assert_called_once_with(
-            "bisa",
-            "2026-11-24",
-        )
+        self.scraper.assert_called_once_with(self.entity, self.source)
+        self.save_mock.assert_called_once_with(self.entity, self.quote)
 
-        self.scraper.assert_not_called()
-        self.save_mock.assert_not_called()
+    def test_summary_counts_same_day_rate_changes(self):
+        previous = {
+            "date": self.quote["date"],
+            "buy": 6.80,
+            "sell": 6.90,
+        }
+        with patch.object(main, "get_current_record", return_value=previous), \
+                patch.object(main, "log_execution_summary") as summary, \
+                patch.object(main.logger, "log") as log:
+            main.main()
 
-    def test_successful_entity_with_repaired_storage_is_skipped(self):
-        self.progress["entities"]["bisa"] = "success"
-        self.repair_mock.return_value = True
+        self.assertEqual(summary.call_args.kwargs["updated_today"], 1)
+        self.assertTrue(any(
+            call.args[1].startswith("[UPDATED]")
+            for call in log.call_args_list
+            if len(call.args) > 1 and isinstance(call.args[1], str)
+        ))
 
-        main.main()
-
-        self.repair_mock.assert_called_once()
-        self.scraper.assert_not_called()
-
-    def test_successful_entity_with_missing_storage_is_scraped(self):
-        self.progress["entities"]["bisa"] = "success"
-        self.repair_mock.return_value = False
-
-        main.main()
-
-        self.repair_mock.assert_called_once()
-
-        self.scraper.assert_called_once_with(
-            self.entity,
-            self.source,
-        )
-
-        self.save_mock.assert_called_once_with(
-            self.entity,
-            self.quote,
-        )
+    def test_same_day_unchanged_decimal_rates_are_not_marked_updated(self):
+        previous = {
+            "date": self.quote["date"],
+            "buy": 6.85,
+            "sell": 6.96,
+        }
+        from decimal import Decimal
+        decimal_quote = {**self.quote, "buy": Decimal("6.85"), "sell": Decimal("6.96")}
 
         self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "success",
+            main.changed_rate_keys(self.entity, previous, decimal_quote),
+            (),
         )
 
-    def test_entity_without_success_is_scraped_even_if_storage_exists(self):
-        self.progress["entities"].pop("bisa", None)
-        self.repair_mock.return_value = True
-
-        main.main()
-
-        # Storage verification is only used after a previous success.
-        self.repair_mock.assert_not_called()
-
-        self.scraper.assert_called_once()
-
-        self.save_mock.assert_called_once_with(
-            self.entity,
-            self.quote,
-        )
+    def test_change_to_either_same_day_bank_rate_is_detected(self):
+        previous = {"date": self.quote["date"], "buy": 6.85, "sell": 6.96}
+        quote = {**self.quote, "buy": 6.85, "sell": 6.97}
 
         self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "success",
-        )
-
-    def test_entity_with_failed_status_is_scraped_again(self):
-        self.progress["entities"]["bisa"] = "failed"
-
-        main.main()
-
-        self.repair_mock.assert_not_called()
-        self.scraper.assert_called_once()
-        self.save_mock.assert_called_once()
-
-        self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "success",
-        )
-
-    def test_storage_verification_error_does_not_prevent_scraping(self):
-        self.progress["entities"]["bisa"] = "success"
-
-        self.repair_mock.side_effect = OSError(
-            "Storage could not be read."
-        )
-
-        main.main()
-
-        self.scraper.assert_called_once()
-        self.save_mock.assert_called_once()
-
-        self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "success",
+            main.changed_rate_keys(self.entity, previous, quote),
+            ("sell",),
         )
 
     # ---------------------------------------------------------
     # Source and scraper availability
     # ---------------------------------------------------------
 
-    def test_entity_without_source_is_marked_as_failed(self):
+    def test_entity_without_source_is_not_scraped(self):
         self.sources_mock.clear()
 
         main.main()
@@ -293,12 +202,7 @@ class TestMain(unittest.TestCase):
         self.scraper.assert_not_called()
         self.save_mock.assert_not_called()
 
-        self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "failed",
-        )
-
-    def test_entity_with_empty_source_url_is_marked_as_failed(self):
+    def test_entity_with_empty_source_url_is_not_scraped(self):
         self.sources_mock["bisa"] = {
             "url": " ",
             "method": "requests",
@@ -309,22 +213,12 @@ class TestMain(unittest.TestCase):
         self.scraper.assert_not_called()
         self.save_mock.assert_not_called()
 
-        self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "failed",
-        )
-
-    def test_entity_with_invalid_source_structure_is_marked_as_failed(self):
+    def test_entity_with_invalid_source_structure_is_not_scraped(self):
         self.sources_mock["bisa"] = "invalid"
 
         main.main()
 
         self.scraper.assert_not_called()
-
-        self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "failed",
-        )
 
     def test_entity_without_registered_scraper_is_pending(self):
         self.has_scraper_mock.return_value = False
@@ -333,9 +227,8 @@ class TestMain(unittest.TestCase):
 
         self.scraper.assert_not_called()
         self.save_mock.assert_not_called()
-        self.update_mock.assert_not_called()
 
-    def test_scraper_registry_error_marks_entity_as_failed(self):
+    def test_scraper_registry_error_does_not_save_quote(self):
         self.get_scraper_mock.side_effect = ImportError(
             "Scraper module could not be loaded."
         )
@@ -345,16 +238,11 @@ class TestMain(unittest.TestCase):
         self.scraper.assert_not_called()
         self.save_mock.assert_not_called()
 
-        self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "failed",
-        )
-
     # ---------------------------------------------------------
     # Scraping errors
     # ---------------------------------------------------------
 
-    def test_scraper_error_marks_entity_as_failed(self):
+    def test_scraper_error_does_not_save_quote(self):
         self.scraper.side_effect = RuntimeError(
             "Connection failed."
         )
@@ -364,28 +252,18 @@ class TestMain(unittest.TestCase):
         self.scraper.assert_called_once()
         self.save_mock.assert_not_called()
 
-        self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "failed",
-        )
-
-    def test_scraper_returning_non_dictionary_marks_entity_failed(self):
+    def test_scraper_returning_non_dictionary_does_not_save_quote(self):
         self.scraper.return_value = None
 
         main.main()
 
         self.save_mock.assert_not_called()
 
-        self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "failed",
-        )
-
     # ---------------------------------------------------------
     # Quotation validation and persistence
     # ---------------------------------------------------------
 
-    def test_invalid_quote_marks_entity_as_failed(self):
+    def test_invalid_quote_is_not_saved(self):
         self.validate_mock.return_value = (
             False,
             ["Invalid exchange rate."],
@@ -396,12 +274,7 @@ class TestMain(unittest.TestCase):
         self.scraper.assert_called_once()
         self.save_mock.assert_not_called()
 
-        self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "failed",
-        )
-
-    def test_save_error_marks_entity_as_failed(self):
+    def test_save_error_is_handled(self):
         self.save_mock.side_effect = OSError(
             "Could not write quotation."
         )
@@ -410,23 +283,6 @@ class TestMain(unittest.TestCase):
 
         self.save_mock.assert_called_once()
 
-        self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "failed",
-        )
-
-    def test_progress_update_error_does_not_interrupt_processing(self):
-        self.update_mock.side_effect = OSError(
-            "Could not write progress."
-        )
-
-        main.main()
-
-        self.scraper.assert_called_once()
-        self.save_mock.assert_called_once()
-
-        # The quotation was saved successfully even though
-        # the progress update failed.
         self.validate_mock.assert_called_once()
 
     # ---------------------------------------------------------
@@ -476,15 +332,6 @@ class TestMain(unittest.TestCase):
             second_quote,
         )
 
-        self.assertEqual(
-            self.progress["entities"]["bisa"],
-            "failed",
-        )
-
-        self.assertEqual(
-            self.progress["entities"]["bmsc"],
-            "success",
-        )
 
 
 if __name__ == "__main__":

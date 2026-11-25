@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Compara las cotizaciones de compra y venta del dólar en los bancos de Bolivia.">
+    <meta name="theme-color" content="#080d18">
+    <title>Comparar cotizaciones | Dólar Bolivia</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="../js/data.js" defer></script>
+    <script src="../js/compare.js" defer></script>
+</head>
+<body class="compare-page">
+    <a class="skip-link" href="#comparison-results">Saltar a la comparación</a>
+    <div class="app">
+        <header class="header">
+            <div class="header__brand">
+                <a href="../index.html" class="header__logo">Dólar Bolivia</a>
+            </div>
+            <nav class="header__navigation" aria-label="Navegación principal">
+                <a href="../index.html" class="nav-link">Inicio</a>
+                <a href="./compare.html" class="nav-link nav-link--active" aria-current="page">Comparar</a>
+            </nav>
+        </header>
+
+        <main class="compare-main">
+            <div class="compare-heading">
+                <div>
+                    <p class="compare-eyebrow">USD / BOB</p>
+                    <h1>Comparar cotizaciones</h1>
+                    <p>Revisa los precios publicados por cada entidad financiera.</p>
+                </div>
+                <p class="compare-updated" id="compare-updated">Actualización: --</p>
+            </div>
+
+            <section class="compare-controls" aria-label="Calculadora de comparación">
+                <div class="compare-select-group compare-select-group--base">
+                    <label for="base-bank">Banco de referencia</label>
+                    <select id="base-bank"><option value="">Selecciona un banco</option></select>
+                    <small class="compare-field-hint" aria-hidden="true">&nbsp;</small>
+                </div>
+                <div class="compare-select-group compare-select-group--compare">
+                    <label for="compare-bank">Comparar con</label>
+                    <select id="compare-bank"><option value="">Selecciona otro banco</option></select>
+                    <small class="compare-field-hint" aria-hidden="true">&nbsp;</small>
+                </div>
+                <div class="compare-select-group compare-amount-group">
+                    <label for="usd-amount">Cantidad en dólares</label>
+                    <div class="compare-amount-input"><span aria-hidden="true">USD</span><input id="usd-amount" type="number" min="0.01" step="any" value="100" inputmode="decimal" aria-describedby="amount-help"></div>
+                    <small id="amount-help">Ingresa una cantidad mayor que cero.</small>
+                </div>
+                <div class="compare-operation-group" role="group" aria-label="Tipo de operación">
+                    <button type="button" data-operation="buy" aria-pressed="true">Comprar dólares</button>
+                    <button type="button" data-operation="sell" aria-pressed="false">Vender dólares</button>
+                </div>
+            </section>
+
+            <p id="compare-status" class="compare-status" role="status" aria-live="polite">Cargando cotizaciones...</p>
+            <section id="comparison-results" class="comparison-results">
+                <div class="comparison-bank-grid">
+                    <article class="comparison-bank-card comparison-bank-card--base"><span class="compare-eyebrow">Banco de referencia</span><h2 id="base-bank-name">Selecciona un banco</h2><p id="base-bank-date" class="compare-date">Fecha: --</p><dl><div><dt>Compra USD</dt><dd id="base-bank-buy">--</dd></div><div><dt>Venta USD</dt><dd id="base-bank-sell">--</dd></div></dl></article>
+                    <article class="comparison-bank-card comparison-bank-card--official"><span class="compare-eyebrow">Referencia oficial</span><h2>Banco Central de Bolivia</h2><p id="compare-official-date" class="compare-date">Fecha: --</p><dl><div><dt>Cotización oficial</dt><dd id="compare-official">--</dd></div></dl></article>
+                    <article class="comparison-bank-card comparison-bank-card--compare"><span class="compare-eyebrow">Banco comparado</span><h2 id="compare-bank-name">Selecciona otro banco</h2><p id="compare-bank-date" class="compare-date">Fecha: --</p><dl><div><dt>Compra USD</dt><dd id="compare-bank-buy">--</dd></div><div><dt>Venta USD</dt><dd id="compare-bank-sell">--</dd></div></dl></article>
+                </div>
+                <h2 class="comparison-section-title" id="calculation-heading">Resultados para -- USD</h2>
+                <div id="comparison-details" class="comparison-metrics-grid" aria-labelledby="calculation-heading"></div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p class="footer__disclaimer">Información referencial. Verifica las condiciones directamente con cada entidad.</p>
+            <p class="footer__credit">Desarrollado por Bryan Gutierrez</p>
+        </footer>
+    </div>
+</body>
+</html>

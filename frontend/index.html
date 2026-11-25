@@ -29,6 +29,8 @@
 
 <body>
 
+    <a class="skip-link" href="#entity-list">Saltar a cotizaciones</a>
+
     <div class="app">
 
         <!-- Header -->
@@ -40,7 +42,7 @@
             </div>
 
             <nav class="header__navigation" aria-label="Navegación principal">
-                <a href="./index.html" class="nav-link nav-link--active">
+                <a href="./index.html" class="nav-link nav-link--active" aria-current="page">
                     Inicio
                 </a>
 
@@ -53,7 +55,7 @@
         <!-- Main dashboard -->
         <main class="dashboard">
 
-            <!-- Fixed dashboard section -->
+            <!-- Sticky official quotation -->
             <section class="dashboard__fixed">
 
                 <!-- Official rate -->
@@ -88,8 +90,10 @@
 
                 </section>
 
-                <!-- Operation selector -->
-                <section class="controls">
+            </section>
+
+            <!-- Operation and display controls -->
+            <section class="controls">
 
                     <div class="control-group">
                         <h2 class="control-group__title">
@@ -151,12 +155,19 @@
                         </div>
                     </div>
 
-                </section>
+            </section>
 
-                <!-- Entity list heading -->
-                <section class="entity-list-header">
+            <!-- Entity list and its aligned column headings -->
+            <section
+                class="entity-list"
+                id="entity-list"
+                aria-label="Cotizaciones de entidades financieras"
+                aria-live="polite"
+                aria-busy="true"
+            >
+                <section class="entity-list-header" aria-labelledby="entity-list-title">
 
-                    <h2 class="entity-list-header__title">
+                    <h2 class="entity-list-header__title" id="entity-list-title">
                         Entidades financieras
                     </h2>
 
@@ -170,20 +181,10 @@
                     </div>
 
                 </section>
-
-            </section>
-
-            <!-- Scrollable entity list -->
-            <section
-                class="entity-list"
-                id="entity-list"
-                aria-label="Cotizaciones de entidades financieras"
-                aria-live="polite"
-                aria-busy="true"
-            >
-
-                <div class="entity-list__loading" id="loading-state">
-                    Cargando cotizaciones...
+                <div class="entity-list__items" id="entity-list-items">
+                    <div class="entity-list__loading" id="loading-state">
+                        Cargando cotizaciones...
+                    </div>
                 </div>
 
             </section>
@@ -433,7 +434,7 @@
             </p>
 
             <p class="footer__credit">
-                Dólar Bolivia
+                Desarrollado por Bryan Gutierrez
             </p>
 
         </footer>

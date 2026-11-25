@@ -32,6 +32,7 @@ const elements = {
     updatedAt: document.getElementById("updated-at"),
 
     entityList: document.getElementById("entity-list"),
+    entityItems: document.getElementById("entity-list-items"),
 
     operationButtons: document.querySelectorAll(
         "[data-operation]"
@@ -216,7 +217,7 @@ function renderEntity(entity, index) {
 
     return `
         <article
-            class="entity-card"
+            class="entity-card${isBestRate ? " entity-card--best" : ""}"
             data-entity-id="${escapeHTML(entity.id)}"
             tabindex="0"
             role="button"
@@ -230,23 +231,24 @@ function renderEntity(entity, index) {
                         ${index + 1}
                     </span>
 
-                    <h3 class="entity-card__name">
-                        ${escapeHTML(entity.name)}
-                    </h3>
+                    <div class="entity-card__name-details">
+                        <h3 class="entity-card__name">
+                            ${escapeHTML(entity.name)}
+                        </h3>
+                        ${isBestRate ? `
+                            <span class="entity-card__best">Mejor opción</span>
+                        ` : ""}
+                    </div>
                 </div>
 
                 <time
                     class="entity-card__date"
                     datetime="${escapeHTML(entity.date)}"
+                    aria-label="Fecha de cotización: ${formatDate(entity.date)}"
                 >
-                    Cotización: ${formatDate(entity.date)}
+                    <span class="entity-card__date-label">Cotización:</span>
+                    ${formatDate(entity.date)}
                 </time>
-
-                ${isBestRate ? `
-                    <span class="entity-card__best">
-                        Mejor opción
-                    </span>
-                ` : ""}
 
             </div>
 
@@ -313,18 +315,20 @@ function renderEntityList() {
     );
 
     if (sortedEntities.length === 0) {
-        elements.entityList.innerHTML = `
+        elements.entityItems.innerHTML = `
             <div class="entity-list__loading">
                 No hay cotizaciones disponibles.
             </div>
         `;
+        elements.entityList.setAttribute("aria-busy", "false");
 
         return;
     }
 
-    elements.entityList.innerHTML = sortedEntities
+    elements.entityItems.innerHTML = sortedEntities
         .map((entity, index) => renderEntity(entity, index))
         .join("");
+    elements.entityList.setAttribute("aria-busy", "false");
 }
 
 
@@ -570,7 +574,8 @@ function handleDisplayChange(display) {
    ========================================================= */
 
 function renderLoadingState() {
-    elements.entityList.innerHTML = `
+    elements.entityList.setAttribute("aria-busy", "true");
+    elements.entityItems.innerHTML = `
         <div class="entity-list__loading">
             Cargando cotizaciones...
         </div>
@@ -580,8 +585,9 @@ function renderLoadingState() {
 
 function renderErrorState(error) {
     console.error("Dashboard loading error:", error);
+    elements.entityList.setAttribute("aria-busy", "false");
 
-    elements.entityList.innerHTML = `
+    elements.entityItems.innerHTML = `
         <div class="entity-list__loading">
             <div class="entity-list__error">
 

@@ -3,17 +3,12 @@ from pathlib import Path
 # Project directories
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SCRAPER_DIR = BASE_DIR / "scraper"
-DOCS_DIR = BASE_DIR / "frontend"
-DATA_DIR = BASE_DIR / "data"
+FRONTEND_DIR = BASE_DIR / "frontend"
 
 # Output files
 
-CURRENT_DATA_FILE = DOCS_DIR / "data" / "current.json"
-HISTORY_DIR = DATA_DIR / "history"
-
-# Scraper execution state
-PROGRESS_FILE = SCRAPER_DIR / "progress.json"
+CURRENT_DATA_FILE = FRONTEND_DIR / "data" / "current.json"
+HISTORY_DIR = FRONTEND_DIR / "data" / "history"
 
 # Currency configuration
 CURRENCY = "USD"

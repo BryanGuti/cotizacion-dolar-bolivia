@@ -71,16 +71,23 @@ dolar-bolivia/
 │
 ├── frontend/
 │   ├── index.html
-│   ├── assets/
 │   ├── pages/
 │   │   └── compare.html
 │   ├── css/
 │   │   └── styles.css
 │   ├── js/
 │   │   ├── app.js
+│   │   ├── compare.js
 │   │   └── data.js
 │   └── data/
-│       └── current.json
+│       ├── current.json
+│       └── history/
+│           └── YYYY/
+│               ├── bcb.jsonl
+│               └── ...
+│
+├── data/
+│   └── history/              # Archivo legado conservado; no lo consume la aplicación
 │
 ├── scraper/
 │   ├── main.py
@@ -105,17 +112,14 @@ dolar-bolivia/
 │       ├── logger.py
 │       ├── validators.py
 │       ├── normalizer.py
-│       ├── storage.py
-│       └── progress.py
+│       └── storage.py
 │
 ├── tests/
-│
-├── data/
-│   └── history/
-│       └── YYYY/
-│           ├── bcb.jsonl
-│           ├── bmsc.jsonl
-│           └── ...
+├── .github/
+│   └── workflows/
+│       ├── ci.yml
+│       ├── deploy-pages.yml
+│       └── scrape-and-deploy.yml
 │
 ├── .gitignore
 ├── README.md
@@ -147,8 +151,7 @@ Contiene las herramientas compartidas por el sistema.
 - `logger.py`: configura los registros de ejecución y sus niveles de importancia.
 - `validators.py`: verifica la estructura y validez de las cotizaciones.
 - `normalizer.py`: normaliza los valores numéricos obtenidos desde las distintas fuentes.
-- `storage.py`: administra la lectura, escritura y recuperación de los datos.
-- `progress.py`: registra el estado de procesamiento de las entidades.
+- `storage.py`: administra la lectura y escritura de los datos actuales e históricos.
 
 **`tests/`**
 
@@ -158,7 +161,9 @@ Contiene las pruebas automatizadas destinadas a comprobar el comportamiento de l
 
 Contiene los recursos del frontend estático y el archivo de datos utilizado para consultar las cotizaciones actuales.
 
-**`data/history/`**
+- `js/compare.js` y `pages/compare.html`: permiten comparar entidades y abrir una comparación desde el detalle de una cotización.
+
+**`frontend/data/history/`**
 
 Almacena los registros históricos de las cotizaciones organizados por año y entidad financiera.
 
@@ -176,7 +181,7 @@ Almacena los registros históricos de las cotizaciones organizados por año y en
 
 Para ejecutar el proyecto se necesita:
 
-- Python 3.9 o superior.
+- Python 3.10 o superior.
 - pip.
 - Git.
 - Conexión a Internet para consultar las fuentes de información.
@@ -233,7 +238,7 @@ Durante la ejecución, el programa:
 
 1. Carga la configuración.
 2. Comprueba la disponibilidad de los scrapers registrados.
-3. Consulta las entidades que necesitan ser procesadas.
+3. Consulta todas las entidades configuradas en cada ejecución, incluso si ya se obtuvo una cotización ese día.
 4. Extrae y normaliza las cotizaciones.
 5. Valida los resultados.
 6. Guarda las cotizaciones válidas.
@@ -242,7 +247,17 @@ Durante la ejecución, el programa:
 
 La ejecución requiere conexión a Internet para acceder a las fuentes externas.
 
-## 9. Validación y normalización de datos
+Cada entidad conserva un único registro histórico por fecha. Si una ejecución posterior encuentra valores de compra, venta o cotización oficial distintos para esa fecha, reemplaza el registro de esa fecha y sincroniza `current.json` cuando corresponda.
+
+## 9. Automatización y publicación
+
+GitHub Actions ejecuta las pruebas unitarias en cada push y pull request hacia `main`. Las pruebas de integración que consultan directamente al BCB se mantienen para ejecución manual y no bloquean CI cuando el servicio externo o la conexión no están disponibles. El scraper programado se ejecuta a la 01:00 y cada dos horas hasta las 11:00, hora de Bolivia (UTC-4). GitHub Actions interpreta el cron en UTC; el horario configurado equivale a 05:00, 07:00, 09:00, 11:00, 13:00 y 15:00 UTC.
+
+Después de cada ejecución, el workflow actualiza los datos bajo `frontend/data/`, guarda los cambios en Git cuando los hay y despliega `frontend/` en GitHub Pages. También se puede iniciar desde **Actions → Scrape and deploy Dólar Bolivia → Run workflow**.
+
+Para habilitar la publicación en el repositorio, configura **Settings → Pages → Build and deployment → Source: GitHub Actions**. El workflow publica únicamente el contenido de `frontend/`.
+
+## 10. Validación y normalización de datos
 
 Las distintas fuentes pueden presentar sus cotizaciones en formatos diferentes. Por esta razón, el proyecto incorpora mecanismos comunes para normalizar y validar la información.
 
@@ -274,7 +289,7 @@ Entre los controles se encuentran:
 
 Una cotización que no supera las validaciones no se guarda como un nuevo resultado válido.
 
-## 10. Sistema de almacenamiento
+## 11. Sistema de almacenamiento
 
 El proyecto mantiene dos niveles principales de almacenamiento.
 
@@ -297,13 +312,13 @@ El sistema conserva la última cotización válida disponible para cada entidad.
 Los registros históricos se almacenan en:
 
 ```text
-data/history/
+frontend/data/history/
 ```
 
 La estructura se organiza por año y por identificador de entidad:
 
 ```text
-data/history/
+frontend/data/history/
 └── 2026/
     ├── bcb.jsonl
     ├── bmsc.jsonl
@@ -322,6 +337,8 @@ Cada archivo utiliza el formato JSON Lines (JSONL), donde cada línea representa
 
 Los registros se organizan por fecha de cotización. Si se actualiza una cotización correspondiente a una fecha que ya existe, el sistema reemplaza ese registro en lugar de generar duplicados para la misma entidad y fecha.
 
+El repositorio conserva además `data/history/`, de una ubicación anterior. Sus registros no coinciden completamente con `frontend/data/history/`, por lo que se mantiene como archivo legado hasta reconciliar las diferencias; el scraper y el sitio solo usan la ruta canónica bajo `frontend/`.
+
 ### Integridad del almacenamiento
 
 El módulo `storage.py` incorpora mecanismos para:
@@ -333,31 +350,6 @@ El módulo `storage.py` incorpora mecanismos para:
 - Evitar que una cotización antigua reemplace a una más reciente.
 - Realizar escrituras atómicas para reducir el riesgo de archivos incompletos.
 - Recuperar y sincronizar información entre el archivo actual y el historial.
-
-## 11. Gestión del progreso y recuperación
-
-El sistema utiliza un archivo local de progreso para registrar el estado de procesamiento de cada entidad.
-
-Los estados principales son:
-
-- `success`: la entidad fue procesada correctamente.
-- `failed`: el procesamiento de la entidad presentó un error.
-
-El progreso permite evitar consultas innecesarias durante ejecuciones repetidas.
-
-Por ejemplo, si una entidad ya fue procesada correctamente durante el día y sus datos están almacenados íntegramente, el sistema puede omitir una nueva consulta.
-
-Si existe una inconsistencia en el almacenamiento, el sistema intenta recuperar o reparar la información antes de decidir si necesita volver a consultar la fuente.
-
-El progreso se gestiona de manera independiente para cada entidad y se reinicia al cambiar la fecha operativa.
-
-Las fechas operativas y los timestamps de captura utilizan la zona horaria:
-
-```text
-America/La_Paz
-```
-
-El archivo de progreso es un dato operativo local y no forma parte del historial público de cotizaciones.
 
 ## 12. Manejo de errores y registros
 
@@ -392,7 +384,6 @@ Las pruebas cubren diferentes aspectos:
 - Almacenamiento de cotizaciones actuales.
 - Actualización del historial.
 - Recuperación de datos.
-- Gestión del progreso.
 - Orquestación y manejo de errores.
 
 ### Ejecutar todas las pruebas
@@ -417,7 +408,13 @@ Para ejecutar las pruebas de un scraper:
 python -m pytest tests/test_bcb_scraper.py -v
 ```
 
-Las pruebas de integración que consultan fuentes externas pueden depender de la disponibilidad de Internet y de los servicios de terceros.
+La prueba de integración que consulta directamente el BCB depende de la disponibilidad de Internet y del servicio externo. Las pruebas marcadas `integration` se excluyen de la suite predeterminada para que CI sea reproducible.
+
+Para ejecutar las pruebas de integración de forma explícita:
+
+```bash
+python -m pytest -v -m integration
+```
 
 ## 14. Consideraciones y limitaciones
 

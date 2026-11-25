@@ -6,6 +6,7 @@ from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
 
+from scraper.config import HISTORY_DIR as CONFIGURED_HISTORY_DIR
 from scraper.utils.storage import (
     get_current_record,
     get_history_record,
@@ -15,6 +16,16 @@ from scraper.utils.storage import (
 
 
 class TestStorage(unittest.TestCase):
+
+    def test_configured_history_directory_is_public_frontend_data(self):
+        expected_history_dir = (
+            Path(__file__).resolve().parent.parent
+            / "frontend"
+            / "data"
+            / "history"
+        )
+
+        self.assertEqual(CONFIGURED_HISTORY_DIR, expected_history_dir)
 
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()

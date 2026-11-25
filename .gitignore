@@ -11,9 +11,6 @@ venv/
 .env
 .env.*
 
-# Scraper execution state
-scraper/progress.json
-
 # Logs
 *.log
 

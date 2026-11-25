@@ -3,7 +3,9 @@
    1. CONFIGURATION
    ========================================================= */
 
-const DATA_URL = "./data/current.json";
+const SCRIPT_DIRECTORY = new URL(".", document.currentScript.src);
+const DATA_URL = new URL("../data/current.json", SCRIPT_DIRECTORY);
+const HISTORY_DIRECTORY = new URL("../data/history/", SCRIPT_DIRECTORY);
 
 
 /* =========================================================
@@ -272,7 +274,10 @@ function parseHistoryJSONL(content, entityId) {
 }
 
 async function loadHistoryYear(entityId, year) {
-    const url = `/data/history/${year}/${entityId}.jsonl`;
+    const url = new URL(
+        `${year}/${encodeURIComponent(entityId)}.jsonl`,
+        HISTORY_DIRECTORY
+    );
 
     const response = await fetch(url, {
         cache: "no-cache",
