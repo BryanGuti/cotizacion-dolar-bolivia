@@ -36,8 +36,8 @@ fi
 source .venv/bin/activate
 python -m scraper.main
 
-FRONTEND_CHANGES="$(git status --porcelain -- frontend/)"
-if [[ -n "$FRONTEND_CHANGES" ]]; then
+DATA_CHANGES="$(git status --porcelain -- frontend/data/)"
+if [[ -n "$DATA_CHANGES" ]]; then
     git add -- frontend/
     if git diff --cached --quiet -- frontend/; then
         echo "No stageable frontend changes; skipping commit and push."
@@ -47,5 +47,5 @@ if [[ -n "$FRONTEND_CHANGES" ]]; then
         echo "Frontend changes committed and pushed."
     fi
 else
-    echo "No frontend changes; skipping add, commit, and push."
+    echo "No frontend/data changes; skipping add, commit, and push."
 fi

@@ -116,7 +116,7 @@ For scheduled local scraping and data pushes, install the requirements in `.venv
 bash scripts/update_exchange_rates.sh
 ```
 
-The local runner activates `.venv` and runs `python -m scraper.main`. It stages, commits, and pushes only when files under `frontend/` changed. It appends all output to `logs/YYYY-MM-DD.log`, with start and end markers for each run; logs are restricted to the local user and ignored by Git. Configure a local cron job for the desired schedule. It can use the GNOME Keyring SSH agent socket when cron does not inherit `SSH_AUTH_SOCK`; do not place credentials in the script or crontab.
+The local runner activates `.venv` and runs `python -m scraper.main`. It starts Git operations only when files under `frontend/data/` changed, then stages all of `frontend/`. It appends all output to `logs/YYYY-MM-DD.log`, with start and end markers for each run; logs are restricted to the local user and ignored by Git. Configure a local cron job for the desired schedule. It can use the GNOME Keyring SSH agent socket when cron does not inherit `SSH_AUTH_SOCK`; do not place credentials in the script or crontab.
 
 ### Run Tests
 

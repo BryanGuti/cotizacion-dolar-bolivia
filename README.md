@@ -159,7 +159,7 @@ Contiene las herramientas compartidas por el sistema.
 
 **`scripts/update_exchange_rates.sh`**
 
-Activa `.venv` y ejecuta `python -m scraper.main`. Solo cuando cambian archivos de `frontend/` los agrega, crea un commit `Update Data (AAAA-MM-DD HH:MM:SS)` y hace push. Así también publica cambios manuales de HTML, CSS, JavaScript y otros archivos del frontend. Toda la salida estándar y de error de la ejecución, incluidos scraper y Git, se anexa a `logs/AAAA-MM-DD.log`, cuyos permisos quedan restringidos al usuario local. Cada ejecución queda delimitada por fecha, hora, PID y estado de salida. La carpeta `logs/` está excluida de Git.
+Activa `.venv` y ejecuta `python -m scraper.main`. Solo si detecta cambios en `frontend/data/` ejecuta el flujo Git; entonces agrega toda `frontend/`, crea un commit `Update Data (AAAA-MM-DD HH:MM:SS)` y hace push. Así también publica cambios manuales de HTML, CSS y JavaScript cuando coincide con una actualización de datos. El scraper registra `captured_at` y `updated_at`, por lo que esos cambios de timestamp también cuentan aunque las tasas sean iguales. Toda la salida estándar y de error de la ejecución, incluidos scraper y Git, se anexa a `logs/AAAA-MM-DD.log`, cuyos permisos quedan restringidos al usuario local. Cada ejecución queda delimitada por fecha, hora, PID y estado de salida. La carpeta `logs/` está excluida de Git.
 
 **`.github/workflows/`**
 
@@ -267,11 +267,11 @@ Para ejecutar y publicar los datos desde el entorno virtual, utiliza:
 bash scripts/update_exchange_rates.sh
 ```
 
-El script agrega toda la carpeta `frontend/` únicamente si detecta cambios; sin cambios omite `git add`, commit y push. No agrega los logs ni cambios fuera del frontend. Git debe tener configuradas credenciales que permitan hacer push.
+El script solo inicia el flujo Git al detectar cambios en `frontend/data/`. En ese caso agrega toda la carpeta `frontend/`, para incluir también cambios manuales del sitio. No agrega los logs ni cambios fuera del frontend. Git debe tener configuradas credenciales que permitan hacer push.
 
 ## 9. Automation and deployment
 
-The scraper runs on the local Linux computer through `scripts/update_exchange_rates.sh`; GitHub Actions does not run the scraper. The script activates `.venv` and executes `python -m scraper.main`. It stages, commits, and pushes only when files under `frontend/` changed. This also publishes manual HTML, CSS, and JavaScript edits. All standard output and errors from the scraper and Git are appended to the ignored daily log `logs/YYYY-MM-DD.log`, with permissions restricted to the local user. Each run is marked with start and end timestamps, PID, and exit status.
+The scraper runs on the local Linux computer through `scripts/update_exchange_rates.sh`; GitHub Actions does not run the scraper. The script activates `.venv` and executes `python -m scraper.main`. It starts the Git flow only when files under `frontend/data/` changed, then stages all of `frontend/` so manual HTML, CSS, and JavaScript edits are included too. The scraper updates `captured_at` and `updated_at`, so timestamp-only changes also trigger this flow even when rates are unchanged. All standard output and errors from the scraper and Git are appended to the ignored daily log `logs/YYYY-MM-DD.log`, with permissions restricted to the local user. Each run is marked with start and end timestamps, PID, and exit status.
 
 To run every two hours starting at 01:17, add this entry with `crontab -e`. Ubuntu cron supports the `CRON_TZ` setting; if another cron implementation ignores it, set the computer's system timezone to `America/La_Paz` instead. See the [Ubuntu crontab manual](https://manpages.ubuntu.com/manpages/noble/man5/crontab.5.html).
 
