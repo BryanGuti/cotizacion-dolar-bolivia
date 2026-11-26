@@ -26,6 +26,24 @@ logger = get_logger(__name__)
 SCRAPE_MAX_ATTEMPTS = len(SCRAPE_RETRY_DELAYS_SECONDS) + 1
 
 
+def describe_error(error: Exception) -> str:
+    """Return a short, source-independent explanation for a scraper error."""
+
+    if isinstance(error, requests.HTTPError):
+        status = error.response.status_code if error.response is not None else "?"
+        return f"el servidor respondió HTTP {status}"
+    if isinstance(error, requests.Timeout):
+        return "se agotó el tiempo de espera al consultar la fuente"
+    if isinstance(error, requests.ConnectionError):
+        return "no se pudo establecer conexión con la fuente"
+    if isinstance(error, requests.exceptions.JSONDecodeError):
+        return "la fuente devolvió una respuesta que no es JSON válido"
+    if isinstance(error, ValueError):
+        return f"dato o respuesta inválida: {error}"
+    detail = str(error).strip()
+    return f"{type(error).__name__}: {detail}" if detail else type(error).__name__
+
+
 def _retry_after_seconds(error: requests.HTTPError) -> float | None:
     """Parse a Retry-After delta or HTTP date from a retryable response."""
 
@@ -125,7 +143,7 @@ def fetch_quote_with_retries(
                     SCRAPE_MAX_ATTEMPTS,
                     entity["name"],
                     entity["id"],
-                    exc,
+                    describe_error(exc),
                 )
                 raise
 
@@ -136,19 +154,19 @@ def fetch_quote_with_retries(
                     SCRAPE_MAX_ATTEMPTS,
                     entity["name"],
                     entity["id"],
-                    exc,
+                    describe_error(exc),
                 )
                 raise
 
             delay = _retry_delay(attempt, exc)
             logger.warning(
-                "Retryable request failure for %s (%s), attempt %d/%d: %s. "
+                "Fallo temporal al consultar %s (%s), intento %d/%d: %s. "
                 "Retrying in %.2f second(s).",
                 entity["name"],
                 entity["id"],
                 attempt,
                 SCRAPE_MAX_ATTEMPTS,
-                exc,
+                describe_error(exc),
                 delay,
             )
             time.sleep(delay)
@@ -312,11 +330,12 @@ def process_quote(
     try:
         save_quote(entity, quote)
 
-    except Exception:
-        logger.exception(
-            "Could not save quotation for %s (%s).",
+    except Exception as exc:
+        logger.error(
+            "No se pudo guardar la cotización de %s (%s): %s",
             entity_name,
             entity_id,
+            describe_error(exc),
         )
 
         return False
@@ -444,11 +463,12 @@ def main() -> int:
 
             quote = fetch_quote_with_retries(scraper, entity, source)
 
-        except Exception:
-            logger.exception(
-                "Scraping failed for %s (%s).",
+        except Exception as exc:
+            logger.error(
+                "No se pudo obtener la cotización de %s (%s): %s",
                 entity_name,
                 entity_id,
+                describe_error(exc),
             )
 
             failed_count += 1
@@ -461,11 +481,12 @@ def main() -> int:
             changed_today = bool(changed_keys)
             success = process_quote(entity, quote)
 
-        except Exception:
-            logger.exception(
-                "Unexpected error processing %s (%s).",
+        except Exception as exc:
+            logger.error(
+                "Error al procesar la cotización de %s (%s): %s",
                 entity_name,
                 entity_id,
+                describe_error(exc),
             )
 
             failed_count += 1

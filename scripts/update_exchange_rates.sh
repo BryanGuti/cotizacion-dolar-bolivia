@@ -34,7 +34,16 @@ if [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
 fi
 
 source .venv/bin/activate
-python -m scraper.main
+SCRAPER_STATUS=0
+if python -m scraper.main; then
+    :
+else
+    SCRAPER_STATUS=$?
+fi
+
+if [[ "$SCRAPER_STATUS" -ne 0 ]]; then
+    echo "El scraper terminó con errores (código $SCRAPER_STATUS); se continuará con la actualización de GitHub."
+fi
 
 DATA_CHANGES="$(git status --porcelain -- frontend/data/)"
 if [[ -n "$DATA_CHANGES" ]]; then
@@ -49,3 +58,5 @@ if [[ -n "$DATA_CHANGES" ]]; then
 else
     echo "No frontend/data changes; skipping add, commit, and push."
 fi
+
+exit "$SCRAPER_STATUS"
