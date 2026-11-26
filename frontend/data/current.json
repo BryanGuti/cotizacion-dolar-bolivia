@@ -1,11 +1,11 @@
 {
-  "updated_at": "2026-11-26T12:00:16.535105-04:00",
+  "updated_at": "2026-11-26T13:52:46.429229-04:00",
   "currency": "USD",
   "price_currency": "BOB",
   "entities": [
     {
       "date": "2026-11-26",
-      "captured_at": "2026-11-26T12:00:03.118167-04:00",
+      "captured_at": "2026-11-26T13:51:24.318111-04:00",
       "id": "bcb",
       "name": "Banco Central de Bolivia",
       "type": "central_bank",
@@ -13,7 +13,7 @@
     },
     {
       "date": "2026-11-26",
-      "captured_at": "2026-11-26T12:00:03.303891-04:00",
+      "captured_at": "2026-11-26T13:51:25.328903-04:00",
       "id": "bmsc",
       "name": "Banco Mercantil Santa Cruz",
       "type": "commercial_bank",
@@ -22,7 +22,7 @@
     },
     {
       "date": "2026-11-26",
-      "captured_at": "2026-11-26T12:00:04.674623-04:00",
+      "captured_at": "2026-11-26T13:51:26.303601-04:00",
       "id": "union",
       "name": "Banco Unión",
       "type": "commercial_bank",
@@ -31,7 +31,7 @@
     },
     {
       "date": "2026-11-26",
-      "captured_at": "2026-11-26T12:00:09.407830-04:00",
+      "captured_at": "2026-11-26T13:51:27.444036-04:00",
       "id": "bnb",
       "name": "Banco Nacional de Bolivia",
       "type": "commercial_bank",
@@ -40,7 +40,7 @@
     },
     {
       "date": "2026-11-26",
-      "captured_at": "2026-11-26T12:00:10.132696-04:00",
+      "captured_at": "2026-11-26T13:51:28.320766-04:00",
       "id": "bisa",
       "name": "Banco BISA",
       "type": "commercial_bank",
@@ -58,7 +58,7 @@
     },
     {
       "date": "2026-11-26",
-      "captured_at": "2026-11-26T12:00:10.474932-04:00",
+      "captured_at": "2026-11-26T13:52:35.681311-04:00",
       "id": "fie",
       "name": "Banco FIE",
       "type": "commercial_bank",
@@ -67,7 +67,7 @@
     },
     {
       "date": "2026-11-26",
-      "captured_at": "2026-11-26T12:00:13.817869-04:00",
+      "captured_at": "2026-11-26T13:52:39.852119-04:00",
       "id": "ganadero",
       "name": "Banco Ganadero",
       "type": "commercial_bank",
@@ -76,7 +76,7 @@
     },
     {
       "date": "2026-11-26",
-      "captured_at": "2026-11-26T12:00:14.867754-04:00",
+      "captured_at": "2026-11-26T13:52:40.316389-04:00",
       "id": "sol",
       "name": "Banco Solidario",
       "type": "commercial_bank",
@@ -85,7 +85,7 @@
     },
     {
       "date": "2026-11-26",
-      "captured_at": "2026-11-26T12:00:15.904713-04:00",
+      "captured_at": "2026-11-26T13:52:41.926607-04:00",
       "id": "economico",
       "name": "Banco Económico",
       "type": "commercial_bank",
@@ -94,7 +94,7 @@
     },
     {
       "date": "2026-11-26",
-      "captured_at": "2026-11-26T12:00:16.530117-04:00",
+      "captured_at": "2026-11-26T13:52:46.426980-04:00",
       "id": "fortaleza",
       "name": "Banco Fortaleza",
       "type": "commercial_bank",
