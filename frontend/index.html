@@ -12,7 +12,7 @@
 
     <title>Dólar Bolivia | Cotizaciones</title>
 
-    <link rel="stylesheet" href="./css/styles.css?v=2">
+    <link rel="stylesheet" href="./css/styles.css?v=3">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,7 +24,7 @@
 
     <script src="./js/data.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js" defer></script>
-    <script src="./js/app.js?v=2" defer></script>
+    <script src="./js/app.js?v=3" defer></script>
 </head>
 
 <body>
@@ -100,7 +100,6 @@
                             <button
                                 type="button"
                                 class="segmented-control__button is-active"
-                                id="operation-toggle"
                                 data-mode-toggle="operation"
                             >Comprar USD</button>
                         </div>
@@ -111,7 +110,6 @@
                             <button
                                 type="button"
                                 class="segmented-control__button is-active"
-                                id="display-toggle"
                                 data-mode-toggle="display"
                             >Bs.</button>
                         </div>
@@ -177,7 +175,7 @@
 
                 </section>
                 <div class="entity-list__items" id="entity-list-items">
-                    <div class="entity-list__loading" id="loading-state">
+                    <div class="entity-list__loading">
                         Cargando cotizaciones...
                     </div>
                 </div>

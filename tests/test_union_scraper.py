@@ -19,7 +19,6 @@ def entity():
 def source():
     return {
         "url": "https://bancounion.com.bo/",
-        "method": "requests",
     }
 
 

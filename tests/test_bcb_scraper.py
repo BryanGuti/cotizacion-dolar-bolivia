@@ -14,7 +14,6 @@ ENTITY = {
 
 SOURCE = {
     "url": "https://www.bcb.gob.bo/librerias/indicadores/otras/ultimo.php",
-    "method": "requests",
 }
 
 

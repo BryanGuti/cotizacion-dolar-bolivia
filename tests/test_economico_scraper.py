@@ -1,5 +1,4 @@
 
-from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -16,7 +15,6 @@ ENTITY = {
 
 SOURCE = {
     "url": "https://www.baneco.com.bo/GetTipoCambio",
-    "method": "requests",
 }
 
 QUOTE_DATA = {

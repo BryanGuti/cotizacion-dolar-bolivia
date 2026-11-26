@@ -81,46 +81,35 @@ ENTITIES = [
 SOURCES = {
     "bcb": {
         "url": "https://www.bcb.gob.bo/librerias/indicadores/otras/ultimo.php",
-        "method": "requests",
     },
     "bmsc": {
         "url": "https://backportal.bmsc.com.bo:1443/api/bmscservices/tipotre",
-        "method": "requests",
     },
     "union": {
         "url": "https://bancounion.com.bo/",
-        "method": "requests",
     },
     "bnb": {
         "url": "https://www.bnb.com.bo/PortalBNB/Principal/BancaPersonas",
-        "method": "requests",
     },
     "bisa": {
         "url": "https://www.bisa.com/home",
-        "method": "requests",
     },
     "bcp": {
         "url": "https://www.bcp.com.bo/",
-        "method": "requests",
     },
     "fie": {
         "url": "https://www.bancofie.com.bo/api/tcl",
-        "method": "requests",
     },
     "ganadero": {
         "url": "https://www.bg.com.bo/personas/",
-        "method": "requests",
     },
     "sol": {
         "url": "https://www.bancosol.com.bo/",
-        "method": "requests",
     },
     "economico": {
         "url": "https://www.baneco.com.bo/GetTipoCambio",
-        "method": "requests",
     },
     "fortaleza": {
         "url": "https://www.bancofortaleza.com.bo/proxy-exchange.php",
-        "method": "requests",
     },
 }

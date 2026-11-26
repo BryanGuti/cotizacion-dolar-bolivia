@@ -444,30 +444,15 @@ function formatDateTime(value) {
    4. DIFFERENCE PRESENTATION
    ========================================================= */
 
-function getDifference(entity, rateType) {
-    return entity.differences[rateType];
-}
-
-
-function getDifferenceClass() {
-    return "difference--neutral";
-}
-
-
 function renderDifference(entity, rateType) {
-    const difference = getDifference(entity, rateType);
+    const difference = entity.differences[rateType];
 
     const value = state.display === "money"
         ? difference.money
         : difference.percentage;
 
-    const differenceClass = getDifferenceClass(
-        difference,
-        rateType
-    );
-
     return `
-        <span class="entity-rate__difference ${differenceClass}">
+        <span class="entity-rate__difference difference--neutral">
             ${formatDifference(value, state.display)}
         </span>
     `;
@@ -526,7 +511,7 @@ function renderEntity(entity, index) {
         `;
     }
 
-    const isBestRate = entity.quoteAvailable !== false && index === 0;
+    const isBestRate = index === 0;
 
     const relevantRate = state.operation === "buy"
         ? "sell"
@@ -657,8 +642,6 @@ function setModalDifference(elementId, value, type) {
     const element = document.getElementById(elementId);
 
     element.textContent = formatDifference(value, type);
-    element.classList.remove("difference--favorable", "difference--unfavorable");
-    element.classList.add("difference--neutral");
     element.hidden = type !== state.display;
 }
 

@@ -20,7 +20,6 @@ def entity():
 def source():
     return {
         "url": "https://backportal.bmsc.com.bo:1443/api/bmscservices/tipotre",
-        "method": "requests",
     }
 
 

@@ -33,7 +33,6 @@ class TestMain(unittest.TestCase):
 
         self.source = {
             "url": "https://example.com",
-            "method": "requests",
         }
 
         self.quote = {
@@ -227,7 +226,6 @@ class TestMain(unittest.TestCase):
     def test_entity_with_empty_source_url_is_not_scraped(self):
         self.sources_mock["bisa"] = {
             "url": " ",
-            "method": "requests",
         }
 
         main.main()
@@ -499,7 +497,6 @@ class TestMain(unittest.TestCase):
 
         second_source = {
             "url": "https://example.org",
-            "method": "requests",
         }
 
         second_quote = {

@@ -15,7 +15,6 @@ ENTITY = {
 
 SOURCE = {
     "url": "https://www.bancofortaleza.com.bo/proxy-exchange.php",
-    "method": "requests",
 }
 
 BASE_URL = "https://www.bancofortaleza.com.bo/"
