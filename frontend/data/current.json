@@ -1,28 +1,28 @@
 {
-  "updated_at": "2026-11-25T15:20:12.981032-04:00",
+  "updated_at": "2026-11-26T03:00:12.940751-04:00",
   "currency": "USD",
   "price_currency": "BOB",
   "entities": [
     {
-      "date": "2026-11-25",
-      "captured_at": "2026-11-25T15:20:02.612978-04:00",
+      "date": "2026-11-26",
+      "captured_at": "2026-11-26T03:00:02.423478-04:00",
       "id": "bcb",
       "name": "Banco Central de Bolivia",
       "type": "central_bank",
-      "official_rate": 11.83
+      "official_rate": 11.86
     },
     {
-      "date": "2026-11-25",
-      "captured_at": "2026-11-25T15:20:02.694286-04:00",
+      "date": "2026-11-26",
+      "captured_at": "2026-11-26T03:00:02.497911-04:00",
       "id": "bmsc",
       "name": "Banco Mercantil Santa Cruz",
       "type": "commercial_bank",
-      "buy": 10.73,
-      "sell": 12.13
+      "buy": 10.76,
+      "sell": 12.16
     },
     {
-      "date": "2026-11-25",
-      "captured_at": "2026-11-25T15:20:04.024555-04:00",
+      "date": "2026-11-26",
+      "captured_at": "2026-11-26T03:00:03.979531-04:00",
       "id": "union",
       "name": "Banco Unión",
       "type": "commercial_bank",
@@ -30,53 +30,53 @@
       "sell": 12.13
     },
     {
-      "date": "2026-11-25",
-      "captured_at": "2026-11-25T15:20:04.381418-04:00",
+      "date": "2026-11-26",
+      "captured_at": "2026-11-26T03:00:04.389637-04:00",
       "id": "bnb",
       "name": "Banco Nacional de Bolivia",
       "type": "commercial_bank",
-      "buy": 11.83,
-      "sell": 12.13
+      "buy": 11.86,
+      "sell": 12.16
     },
     {
-      "date": "2026-11-25",
-      "captured_at": "2026-11-25T15:20:05.371415-04:00",
+      "date": "2026-11-26",
+      "captured_at": "2026-11-26T03:00:05.372365-04:00",
       "id": "bisa",
       "name": "Banco BISA",
       "type": "commercial_bank",
-      "buy": 11.13,
-      "sell": 12.06
+      "buy": 11.16,
+      "sell": 12.09
     },
     {
-      "date": "2026-11-25",
-      "captured_at": "2026-11-25T15:20:05.805755-04:00",
+      "date": "2026-11-26",
+      "captured_at": "2026-11-26T03:00:05.726731-04:00",
       "id": "bcp",
       "name": "Banco de Crédito de Bolivia",
       "type": "commercial_bank",
-      "buy": 11.33,
-      "sell": 12.13
+      "buy": 11.36,
+      "sell": 12.16
     },
     {
-      "date": "2026-11-25",
-      "captured_at": "2026-11-25T15:20:06.315170-04:00",
+      "date": "2026-11-26",
+      "captured_at": "2026-11-26T03:00:06.047067-04:00",
       "id": "fie",
       "name": "Banco FIE",
       "type": "commercial_bank",
-      "buy": 10.83,
-      "sell": 12.18
+      "buy": 10.86,
+      "sell": 12.21
     },
     {
-      "date": "2026-11-25",
-      "captured_at": "2026-11-25T15:20:10.372193-04:00",
+      "date": "2026-11-26",
+      "captured_at": "2026-11-26T03:00:11.324850-04:00",
       "id": "ganadero",
       "name": "Banco Ganadero",
       "type": "commercial_bank",
       "buy": 10.0,
-      "sell": 12.13
+      "sell": 12.16
     },
     {
-      "date": "2026-11-25",
-      "captured_at": "2026-11-25T15:20:11.509332-04:00",
+      "date": "2026-11-26",
+      "captured_at": "2026-11-26T03:00:11.704262-04:00",
       "id": "sol",
       "name": "Banco Solidario",
       "type": "commercial_bank",
@@ -84,17 +84,17 @@
       "sell": 12.08
     },
     {
-      "date": "2026-11-25",
-      "captured_at": "2026-11-25T15:20:12.585164-04:00",
+      "date": "2026-11-26",
+      "captured_at": "2026-11-26T03:00:12.528950-04:00",
       "id": "economico",
       "name": "Banco Económico",
       "type": "commercial_bank",
-      "buy": 10.83,
-      "sell": 12.18
+      "buy": 10.86,
+      "sell": 12.21
     },
     {
-      "date": "2026-11-25",
-      "captured_at": "2026-11-25T15:20:12.975473-04:00",
+      "date": "2026-11-26",
+      "captured_at": "2026-11-26T03:00:12.935157-04:00",
       "id": "fortaleza",
       "name": "Banco Fortaleza",
       "type": "commercial_bank",
