@@ -5,7 +5,6 @@ const elements = {
     operationButtons: document.querySelectorAll("[data-operation]"),
     status: byId("compare-status"),
     official: byId("compare-official"),
-    officialDate: byId("compare-official-date"),
     updated: byId("compare-updated"),
     details: byId("comparison-details"),
     amount: byId("usd-amount"),
@@ -16,12 +15,6 @@ const rateFormatter = new Intl.NumberFormat("es-BO", { minimumFractionDigits: 2,
 const formatMoney = value => Number.isFinite(value) ? `${rateFormatter.format(value)} Bs.` : "--";
 const formatSignedMoney = value => Number.isFinite(value) ? `${value > 0 ? "+" : value < 0 ? "−" : ""}${rateFormatter.format(Math.abs(value))} Bs.` : "--";
 const formatSignedPercent = value => Number.isFinite(value) ? `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toFixed(2)}%` : "--";
-
-function formatDate(value) {
-    if (!value) return "--";
-    const date = new Date(`${value}T12:00:00`);
-    return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("es-BO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/La_Paz" }).format(date);
-}
 
 function formatDateTime(value) {
     if (!value) return "--";
@@ -41,7 +34,6 @@ function populateEntities() {
 function showEntity(entity, index) {
     const prefix = index === 0 ? "base-bank" : "compare-bank";
     byId(`${prefix}-name`).textContent = entity?.name || (index === 0 ? "Selecciona un banco" : "Selecciona otro banco");
-    byId(`${prefix}-date`).textContent = `Fecha: ${formatDate(entity?.date)}`;
     byId(`${prefix}-buy`).textContent = formatMoney(entity?.buy);
     byId(`${prefix}-sell`).textContent = formatMoney(entity?.sell);
     byId(`${prefix}-buy`).classList.toggle("is-rate-active", state.operation === "sell");
@@ -171,12 +163,12 @@ async function initializeComparePage() {
     try {
         state.data = await DollarData.loadDashboardData();
         elements.official.textContent = formatMoney(state.data.official.official_rate);
-        elements.officialDate.textContent = `Fecha: ${formatDate(state.data.official.date)}`;
         elements.updated.textContent = `Actualización: ${formatDateTime(state.data.updatedAt)}`;
         populateEntities();
         renderComparison();
     } catch (error) {
-        elements.status.textContent = error.message || "No se pudieron cargar las cotizaciones.";
+        console.error("No se pudo inicializar la página de comparación:", error);
+        elements.status.textContent = "No se pudieron cargar las cotizaciones. Recarga la página e inténtalo nuevamente.";
     }
 }
 

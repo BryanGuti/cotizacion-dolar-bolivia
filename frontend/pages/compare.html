@@ -8,7 +8,7 @@
     <title>Comparar cotizaciones | Dólar Bolivia</title>
     <link rel="stylesheet" href="../css/styles.css">
     <script src="../js/data.js" defer></script>
-    <script src="../js/compare.js" defer></script>
+    <script src="../js/compare.js?v=3" defer></script>
 </head>
 <body class="compare-page">
     <a class="skip-link" href="#comparison-results">Saltar a la comparación</a>
@@ -58,9 +58,9 @@
             <p id="compare-status" class="compare-status" role="status" aria-live="polite">Cargando cotizaciones...</p>
             <section id="comparison-results" class="comparison-results">
                 <div class="comparison-bank-grid">
-                    <article class="comparison-bank-card comparison-bank-card--base"><span class="compare-eyebrow">Banco de referencia</span><h2 id="base-bank-name">Selecciona un banco</h2><p id="base-bank-date" class="compare-date">Fecha: --</p><dl><div><dt>Compra USD</dt><dd id="base-bank-buy">--</dd></div><div><dt>Venta USD</dt><dd id="base-bank-sell">--</dd></div></dl></article>
-                    <article class="comparison-bank-card comparison-bank-card--official"><span class="compare-eyebrow">Referencia oficial</span><h2>Banco Central de Bolivia</h2><p id="compare-official-date" class="compare-date">Fecha: --</p><dl><div><dt>Cotización oficial</dt><dd id="compare-official">--</dd></div></dl></article>
-                    <article class="comparison-bank-card comparison-bank-card--compare"><span class="compare-eyebrow">Banco comparado</span><h2 id="compare-bank-name">Selecciona otro banco</h2><p id="compare-bank-date" class="compare-date">Fecha: --</p><dl><div><dt>Compra USD</dt><dd id="compare-bank-buy">--</dd></div><div><dt>Venta USD</dt><dd id="compare-bank-sell">--</dd></div></dl></article>
+                    <article class="comparison-bank-card comparison-bank-card--base"><span class="compare-eyebrow">Banco de referencia</span><h2 id="base-bank-name">Selecciona un banco</h2><dl><div><dt>Compra USD</dt><dd id="base-bank-buy">--</dd></div><div><dt>Venta USD</dt><dd id="base-bank-sell">--</dd></div></dl></article>
+                    <article class="comparison-bank-card comparison-bank-card--official"><span class="compare-eyebrow">Referencia oficial</span><h2>Banco Central de Bolivia</h2><dl><div><dt>Cotización oficial</dt><dd id="compare-official">--</dd></div></dl></article>
+                    <article class="comparison-bank-card comparison-bank-card--compare"><span class="compare-eyebrow">Banco comparado</span><h2 id="compare-bank-name">Selecciona otro banco</h2><dl><div><dt>Compra USD</dt><dd id="compare-bank-buy">--</dd></div><div><dt>Venta USD</dt><dd id="compare-bank-sell">--</dd></div></dl></article>
                 </div>
                 <h2 class="comparison-section-title" id="calculation-heading">Resultados para -- USD</h2>
                 <div id="comparison-details" class="comparison-metrics-grid" aria-labelledby="calculation-heading"></div>

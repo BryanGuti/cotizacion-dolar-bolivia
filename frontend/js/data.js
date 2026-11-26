@@ -159,13 +159,18 @@ function processDashboardData(rawData) {
    ========================================================= */
 
 function sortEntities(entities, operation) {
-    const sortedEntities = [...entities];
+    const availableEntities = entities.filter(
+        entity => entity.quoteAvailable !== false
+    );
+    const unavailableEntities = entities.filter(
+        entity => entity.quoteAvailable === false
+    );
 
     if (operation === "buy") {
         // Comprar USD:
         // The lowest selling rate is the best option.
 
-        sortedEntities.sort(
+        availableEntities.sort(
             (a, b) => a.sell - b.sell
         );
 
@@ -173,12 +178,12 @@ function sortEntities(entities, operation) {
         // Vender USD:
         // The highest buying rate is the best option.
 
-        sortedEntities.sort(
+        availableEntities.sort(
             (a, b) => b.buy - a.buy
         );
     }
 
-    return sortedEntities;
+    return [...availableEntities, ...unavailableEntities];
 }
 
 
@@ -198,12 +203,64 @@ async function loadDashboardData() {
     }
 
     const rawData = await response.json();
+    const dashboardData = processDashboardData(rawData);
+    const entityIds = [
+        "bcb",
+        ...dashboardData.entities.map(entity => entity.id),
+    ];
+    const historyEntries = await Promise.all(
+        entityIds.map(async entityId => {
+            try {
+                return [entityId, await loadEntityHistory(entityId)];
+            } catch (error) {
+                console.warn(`No se pudo cargar el historial de ${entityId}:`, error);
+                return [entityId, []];
+            }
+        })
+    );
+    const historyByEntity = Object.fromEntries(historyEntries);
+    const officialHistory = historyByEntity.bcb;
 
-    return processDashboardData(rawData);
+    dashboardData.official.dailyChange = findDailyChange(
+        dashboardData.official.official_rate,
+        dashboardData.official.date,
+        officialHistory,
+        "officialRate"
+    );
+    dashboardData.entities = dashboardData.entities.map(entity => ({
+        ...entity,
+        quoteAvailable: true,
+        dailyChanges: {
+            buy: findDailyChange(
+                entity.buy,
+                entity.date,
+                historyByEntity[entity.id],
+                "buy"
+            ),
+            sell: findDailyChange(
+                entity.sell,
+                entity.date,
+                historyByEntity[entity.id],
+                "sell"
+            ),
+        },
+    }));
+    dashboardData.historyByEntity = historyByEntity;
+    dashboardData.availableDates = [
+        ...new Set([
+            ...getLatestRecordsByDate(officialHistory).keys(),
+            dashboardData.official.date,
+        ]),
+    ].sort();
+    dashboardData.selectedDate = dashboardData.official.date;
+    dashboardData.isHistorical = false;
+
+    return dashboardData;
 }
 
 
 const HISTORY_START_YEAR = 2026;
+const HISTORY_CACHE = new Map();
 
 function normalizeHistoryRecord(record, entityId) {
     if (!record || typeof record !== "object") {
@@ -306,40 +363,55 @@ async function loadEntityHistory(entityId) {
         throw new Error("Identificador de entidad inválido.");
     }
 
-    const currentYear = Number(
-        new Intl.DateTimeFormat("en-US", {
-            timeZone: "America/La_Paz",
-            year: "numeric",
-        }).format(new Date())
-    );
-
-    const years = [];
-
-    for (
-        let year = HISTORY_START_YEAR;
-        year <= currentYear;
-        year++
-    ) {
-        years.push(year);
+    if (HISTORY_CACHE.has(entityId)) {
+        return HISTORY_CACHE.get(entityId);
     }
 
-    const yearlyRecords = await Promise.all(
-        years.map(year => loadHistoryYear(entityId, year))
-    );
+    const historyPromise = (async () => {
+        const currentYear = Number(
+            new Intl.DateTimeFormat("en-US", {
+                timeZone: "America/La_Paz",
+                year: "numeric",
+            }).format(new Date())
+        );
 
-    return yearlyRecords
-        .flat()
-        .sort((a, b) => {
-            const dateComparison = a.date.localeCompare(b.date);
+        const years = [];
 
-            if (dateComparison !== 0) {
-                return dateComparison;
-            }
+        for (
+            let year = HISTORY_START_YEAR;
+            year <= currentYear;
+            year++
+        ) {
+            years.push(year);
+        }
 
-            return (a.capturedAt ?? "").localeCompare(
-                b.capturedAt ?? ""
-            );
-        });
+        const yearlyRecords = await Promise.all(
+            years.map(year => loadHistoryYear(entityId, year))
+        );
+
+        return yearlyRecords
+            .flat()
+            .sort((a, b) => {
+                const dateComparison = a.date.localeCompare(b.date);
+
+                if (dateComparison !== 0) {
+                    return dateComparison;
+                }
+
+                return (a.capturedAt ?? "").localeCompare(
+                    b.capturedAt ?? ""
+                );
+            });
+    })();
+
+    HISTORY_CACHE.set(entityId, historyPromise);
+
+    try {
+        return await historyPromise;
+    } catch (error) {
+        HISTORY_CACHE.delete(entityId);
+        throw error;
+    }
 }
 
 
@@ -368,6 +440,115 @@ function getLatestRecordsByDate(records) {
     }
 
     return latestRecords;
+}
+
+function findDailyChange(currentRate, currentDate, history, rateKey) {
+    if (!Array.isArray(history) || !currentDate) {
+        return null;
+    }
+
+    const previousRecords = [...getLatestRecordsByDate(history).values()]
+        .filter(record => record.date < currentDate)
+        .sort((a, b) => a.date.localeCompare(b.date));
+    const previousRecord = previousRecords[previousRecords.length - 1];
+
+    if (!previousRecord || !isValidRate(previousRecord[rateKey])) {
+        return null;
+    }
+
+    const money = currentRate - previousRecord[rateKey];
+
+    return {
+        money,
+        percentage: (money / previousRecord[rateKey]) * 100,
+        previousDate: previousRecord.date,
+    };
+}
+
+function selectDashboardDate(dashboardData, date) {
+    if (!dashboardData || typeof date !== "string") {
+        return null;
+    }
+
+    const officialRecord = getLatestRecordsByDate(
+        dashboardData.historyByEntity?.bcb ?? []
+    ).get(date);
+
+    if (!officialRecord) {
+        return null;
+    }
+
+    const official = {
+        date: officialRecord.date,
+        captured_at: officialRecord.capturedAt,
+        id: officialRecord.id,
+        name: officialRecord.name,
+        type: officialRecord.type,
+        official_rate: officialRecord.officialRate,
+        dailyChange: findDailyChange(
+            officialRecord.officialRate,
+            date,
+            dashboardData.historyByEntity.bcb,
+            "officialRate"
+        ),
+    };
+
+    const entities = dashboardData.entities.map(currentEntity => {
+        const record = getLatestRecordsByDate(
+            dashboardData.historyByEntity[currentEntity.id] ?? []
+        ).get(date);
+
+        if (!record) {
+            return {
+                ...currentEntity,
+                date,
+                buy: null,
+                sell: null,
+                quoteAvailable: false,
+                differences: null,
+                dailyChanges: { buy: null, sell: null },
+            };
+        }
+
+        const selectedEntity = {
+            ...currentEntity,
+            date: record.date,
+            captured_at: record.capturedAt,
+            buy: record.buy,
+            sell: record.sell,
+            quoteAvailable: true,
+        };
+        const enrichedEntity = enrichEntity(
+            selectedEntity,
+            official.official_rate
+        );
+
+        return {
+            ...enrichedEntity,
+            dailyChanges: {
+                buy: findDailyChange(
+                    record.buy,
+                    date,
+                    dashboardData.historyByEntity[currentEntity.id],
+                    "buy"
+                ),
+                sell: findDailyChange(
+                    record.sell,
+                    date,
+                    dashboardData.historyByEntity[currentEntity.id],
+                    "sell"
+                ),
+            },
+        };
+    });
+
+    return {
+        ...dashboardData,
+        official,
+        entities,
+        selectedDate: date,
+        isHistorical: date !== dashboardData.official.date,
+    };
 }
 
 function buildHistorySeries(officialHistory, entityHistory) {
@@ -441,6 +622,7 @@ async function loadEntityChartData(entityId) {
 
 window.DollarData = Object.freeze({
     loadDashboardData,
+    selectDashboardDate,
     sortEntities,
     loadEntityHistory,
     loadEntityChartData,

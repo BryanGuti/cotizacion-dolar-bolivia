@@ -74,14 +74,15 @@
                     <div class="official-rate__value">
                         <span id="official-rate">--</span>
                         <span class="official-rate__currency">BOB</span>
+                        <span
+                            class="official-rate__daily-change"
+                            id="official-daily-change"
+                        >
+                            --
+                        </span>
                     </div>
 
                     <div class="official-rate__metadata">
-                        <span>
-                            Fecha:
-                            <time id="official-date">--</time>
-                        </span>
-
                         <span>
                             Actualizado:
                             <time id="updated-at">--</time>
@@ -93,68 +94,33 @@
             </section>
 
             <!-- Operation and display controls -->
-            <section class="controls">
-
+            <section class="controls" aria-label="Filtros de cotizaciones">
                     <div class="control-group">
-                        <h2 class="control-group__title">
-                            Operación
-                        </h2>
-
-                        <div
-                            class="segmented-control"
-                            role="group"
-                            aria-label="Seleccionar operación"
-                        >
+                        <div class="segmented-control" role="group" aria-label="Operación">
                             <button
                                 type="button"
                                 class="segmented-control__button is-active"
-                                data-operation="buy"
-                                aria-pressed="true"
-                            >
-                                Comprar USD
-                            </button>
-
-                            <button
-                                type="button"
-                                class="segmented-control__button"
-                                data-operation="sell"
-                                aria-pressed="false"
-                            >
-                                Vender USD
-                            </button>
+                                id="operation-toggle"
+                                data-mode-toggle="operation"
+                            >Comprar USD</button>
                         </div>
                     </div>
 
                     <div class="control-group">
-                        <h2 class="control-group__title">
-                            Mostrar diferencias
-                        </h2>
-
-                        <div
-                            class="segmented-control"
-                            role="group"
-                            aria-label="Seleccionar formato de diferencias"
-                        >
+                        <div class="segmented-control" role="group" aria-label="Formato de variación">
                             <button
                                 type="button"
                                 class="segmented-control__button is-active"
-                                data-display="money"
-                                aria-pressed="true"
-                            >
-                                Monetario (Bs.)
-                            </button>
-
-                            <button
-                                type="button"
-                                class="segmented-control__button"
-                                data-display="percentage"
-                                aria-pressed="false"
-                            >
-                                Porcentaje (%)
-                            </button>
+                                id="display-toggle"
+                                data-mode-toggle="display"
+                            >Bs.</button>
                         </div>
                     </div>
 
+                    <div class="control-group control-group--date">
+                        <input type="date" id="quote-date" name="quote-date" aria-label="Filtrar cotizaciones por fecha">
+                        <span class="quote-date__status" id="quote-date-status" aria-live="polite"></span>
+                    </div>
             </section>
 
             <!-- Entity list and its aligned column headings -->
@@ -172,8 +138,6 @@
                     </h2>
 
                     <div class="entity-list-header__columns">
-                        <span>Entidad</span>
-
                         <div class="entity-list-header__rates">
                             <span>Compra</span>
                             <span>Venta</span>
@@ -240,106 +204,56 @@
 
                 <!-- Rates -->
                 <section class="modal__section">
-
-                    <h3 class="modal__section-title">
-                        Cotizaciones actuales
-                    </h3>
+                    <div class="modal__section-heading">
+                        <h3 class="modal__section-title">Cotizaciones actuales</h3>
+                        <button
+                            type="button"
+                            class="modal-display-toggle"
+                            data-mode-toggle="display"
+                        >Bs.</button>
+                    </div>
 
                     <div class="modal__rates">
-
-                        <article class="modal-rate">
-
-                            <span class="modal-rate__label">
-                                Compra de USD
-                            </span>
-
-                            <strong
-                                class="modal-rate__value"
-                                id="modal-buy"
-                            >
-                                --
-                            </strong>
-
-                            <div class="modal-rate__differences">
-
-                                <span
-                                    class="modal-rate__difference"
-                                    id="modal-buy-money"
-                                >
-                                    --
-                                </span>
-
-                                <span
-                                    class="modal-rate__difference"
-                                    id="modal-buy-percentage"
-                                >
-                                    --
-                                </span>
-
+                        <div class="modal-rate-column">
+                            <article class="modal-rate modal-rate--buy">
+                                <span class="modal-rate__label">Compra</span>
+                                <strong class="modal-rate__value" id="modal-buy">--</strong>
+                            </article>
+                            <div class="modal-rate__metadata">
+                                <span class="modal-rate__daily-change" id="modal-buy-daily-change">--</span>
+                                <span class="modal-rate__official-label">respecto al BCB</span>
+                                <div class="modal-rate__differences">
+                                    <span class="modal-rate__difference" id="modal-buy-money">--</span>
+                                    <span class="modal-rate__difference" id="modal-buy-percentage">--</span>
+                                </div>
                             </div>
+                        </div>
 
-                        </article>
-
-                        <article class="modal-rate">
-
-                            <span class="modal-rate__label">
-                                Venta de USD
-                            </span>
-
-                            <strong
-                                class="modal-rate__value"
-                                id="modal-sell"
-                            >
-                                --
-                            </strong>
-
-                            <div class="modal-rate__differences">
-
-                                <span
-                                    class="modal-rate__difference"
-                                    id="modal-sell-money"
-                                >
-                                    --
-                                </span>
-
-                                <span
-                                    class="modal-rate__difference"
-                                    id="modal-sell-percentage"
-                                >
-                                    --
-                                </span>
-
+                        <div class="modal-rate-column">
+                            <article class="modal-rate modal-rate--official">
+                                <span class="modal-rate__label">BCB</span>
+                                <strong class="modal-rate__value" id="modal-official-rate">--</strong>
+                            </article>
+                            <div class="modal-rate__metadata">
+                                <span class="modal-rate__daily-change" id="modal-official-daily-change">--</span>
                             </div>
+                        </div>
 
-                        </article>
-
+                        <div class="modal-rate-column">
+                            <article class="modal-rate modal-rate--sell">
+                                <span class="modal-rate__label">Venta</span>
+                                <strong class="modal-rate__value" id="modal-sell">--</strong>
+                            </article>
+                            <div class="modal-rate__metadata">
+                                <span class="modal-rate__daily-change" id="modal-sell-daily-change">--</span>
+                                <span class="modal-rate__official-label">respecto al BCB</span>
+                                <div class="modal-rate__differences">
+                                    <span class="modal-rate__difference" id="modal-sell-money">--</span>
+                                    <span class="modal-rate__difference" id="modal-sell-percentage">--</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-
-                </section>
-
-                <!-- Official reference -->
-                <section class="modal__official">
-
-                    <div>
-                        <span class="modal__official-label">
-                            Cotización oficial BCB
-                        </span>
-
-                        <strong
-                            class="modal__official-value"
-                            id="modal-official-rate"
-                        >
-                            --
-                        </strong>
-                    </div>
-
-                    <span
-                        class="modal__official-date"
-                        id="modal-official-date"
-                    >
-                        --
-                    </span>
-
                 </section>
 
                 <!-- Historical charts -->

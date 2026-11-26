@@ -164,7 +164,7 @@ Activa `.venv` y ejecuta `python -m scraper.main`. Un error en una entidad conse
 
 **`.github/workflows/`**
 
-`ci.yml` ejecuta los tests en pull requests y se reutiliza antes de publicar. `deploy-pages.yml` publica el frontend después de un push a la rama predeterminada. `scrape-and-deploy.yml` ejecuta el scraper cada dos horas y permite iniciarlo manualmente; si falla una entidad, continúa validando, guardando y desplegando las cotizaciones válidas.
+`ci.yml` ejecuta los tests en pull requests y se reutiliza antes de publicar. `deploy-pages.yml` publica el frontend después de un push a la rama predeterminada.
 
 **`tests/`**
 
@@ -173,6 +173,7 @@ Contiene las pruebas automatizadas destinadas a comprobar el comportamiento de l
 **`frontend/`**
 
 Contiene los recursos del frontend estático y el archivo de datos utilizado para consultar las cotizaciones actuales.
+El panel abre con los datos más recientes y permite consultar fechas históricas usando únicamente registros guardados; si una entidad no tiene registro para la fecha elegida, se indica que no hay cotización disponible.
 
 - `js/compare.js` y `pages/compare.html`: permiten comparar entidades y abrir una comparación desde el detalle de una cotización.
 
@@ -272,9 +273,7 @@ El script solo inicia el flujo Git al detectar cambios en `frontend/data/`. En e
 
 ## 9. Automation and deployment
 
-GitHub Actions runs the scraper every two hours at minute 17 Bolivia time through `Scrape and deploy exchange rates`; it can also be started manually with **Actions → Scrape and deploy exchange rates → Run workflow**. The workflow tests the project, runs the scraper, validates public data, commits changed current and historical data, then deploys `frontend/` to GitHub Pages. A failed entity keeps its last valid quote, and its error does not prevent successful entities from being saved and deployed. Other workflow failures, such as invalid public data or a failed push/deployment, still stop the run. The scraper step reports an error status in its logs when one or more entities fail, while the workflow continues through deployment.
-
-The local Linux runner remains available through `scripts/update_exchange_rates.sh`. It activates `.venv` and executes `python -m scraper.main`. A failed entity keeps its last valid quote; the scraper reports a concise error and continues with the remaining entities. The script then proceeds with the Git flow when files under `frontend/data/` changed, staging all of `frontend/` so manual HTML, CSS, and JavaScript edits are included too. After Git completes, the script returns a failing status if scraping had errors. The scraper updates `captured_at` and `updated_at`, so timestamp-only changes also trigger this flow even when rates are unchanged. All standard output and errors from the scraper and Git are appended to the ignored daily log `logs/YYYY-MM-DD.log`, with permissions restricted to the local user. Each run is marked with start and end timestamps, PID, and exit status.
+The scraper runs on the local Linux computer through `scripts/update_exchange_rates.sh`. GitHub Actions runs tests on pull requests and publishes `frontend/` after pushes to the default branch. The local script activates `.venv` and executes `python -m scraper.main`. A failed entity keeps its last valid quote; the scraper reports a concise error and continues with the remaining entities. The script then proceeds with the Git flow when files under `frontend/data/` changed, staging all of `frontend/` so manual HTML, CSS, and JavaScript edits are included too. After Git completes, the script returns a failing status if scraping had errors. The scraper updates `captured_at` and `updated_at`, so timestamp-only changes also trigger this flow even when rates are unchanged. All standard output and errors from the scraper and Git are appended to the ignored daily log `logs/YYYY-MM-DD.log`, with permissions restricted to the local user. Each run is marked with start and end timestamps, PID, and exit status.
 
 To run every two hours starting at 01:17, add this entry with `crontab -e`. Ubuntu cron supports the `CRON_TZ` setting; if another cron implementation ignores it, set the computer's system timezone to `America/La_Paz` instead. See the [Ubuntu crontab manual](https://manpages.ubuntu.com/manpages/noble/man5/crontab.5.html).
 
@@ -285,7 +284,7 @@ CRON_TZ=America/La_Paz
 
 This runs at 01:17, 03:17, 05:17, 07:17, 09:17, 11:17, 13:17, 15:17, 17:17, 19:17, 21:17, and 23:17. Replace `/path/to/cotizacion-dolar-bolivia` with the absolute repository path. Cron runs the script in that existing local clone; it does not create another checkout. Keep the clone on the remote default branch with its upstream configured so `git push` updates that branch and triggers production deployment. Cron runs as the crontab owner with a minimal environment. The script uses `/run/user/<uid>/keyring/ssh` when cron does not provide `SSH_AUTH_SOCK`, allowing GNOME Keyring to provide the unlocked SSH key. Logs are written to the repository's ignored `logs/` directory.
 
-The `CI` workflow runs tests on pull requests and is reused by `Deploy GitHub Pages`. Pushes to the default branch publish `frontend/`; scheduled or manually started scraper runs also deploy the collected frontend after saving data. Relative page, stylesheet, script, current-data, and history URLs resolve beneath a project site's repository base path. The three historical charts continue to load JSONL data from `frontend/data/history/`.
+The `CI` workflow runs tests on pull requests and is reused by `Deploy GitHub Pages`. Pushes to the default branch publish `frontend/`; data pushes from the local scraper also trigger that deployment. Relative page, stylesheet, script, current-data, and history URLs resolve beneath a project site's repository base path. The three historical charts continue to load JSONL data from `frontend/data/history/`.
 
 To enable publication, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The deployment workflow uses `contents: read`, `pages: write`, and `id-token: write`; no personal token is stored in the repository.
 

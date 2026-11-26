@@ -5,6 +5,7 @@
 
 const state = {
     data: null,
+    currentData: null,
     operation: "buy",
     display: "money",
     isLoading: false
@@ -28,18 +29,19 @@ let chartRequestId = 0;
 
 const elements = {
     officialRate: document.getElementById("official-rate"),
-    officialDate: document.getElementById("official-date"),
     updatedAt: document.getElementById("updated-at"),
+    quoteDate: document.getElementById("quote-date"),
+    quoteDateStatus: document.getElementById("quote-date-status"),
 
     entityList: document.getElementById("entity-list"),
     entityItems: document.getElementById("entity-list-items"),
 
     operationButtons: document.querySelectorAll(
-        "[data-operation]"
+        '[data-mode-toggle="operation"]'
     ),
 
     displayButtons: document.querySelectorAll(
-        "[data-display]"
+        '[data-mode-toggle="display"]'
     ),
 
     modal: document.getElementById("entity-modal"),
@@ -79,6 +81,69 @@ function formatDifference(value, type) {
     }
 
     return `${sign}${formatRate(value)} %`;
+}
+
+
+function dailyChangeTone(change, reverseDirection = false) {
+    if (!change || change.money === 0) {
+        return "neutral";
+    }
+
+    if (reverseDirection) {
+        return change.money < 0 ? "up" : "down";
+    }
+
+    return change.money < 0 ? "down" : "up";
+}
+
+
+function describeDailyChange(change, display = "both") {
+    if (!change) {
+        return "No hay una cotización anterior disponible para comparar.";
+    }
+
+    if (change.money === 0) {
+        return "La cotización no varió respecto a la cotización anterior.";
+    }
+
+    const direction = change.money < 0 ? "Bajó" : "Subió";
+    const value = display === "money"
+        ? `${formatRate(Math.abs(change.money))} bolivianos`
+        : display === "percentage"
+            ? `${formatRate(Math.abs(change.percentage))} por ciento`
+            : `${formatRate(Math.abs(change.money))} bolivianos ` +
+                `(${formatRate(Math.abs(change.percentage))} por ciento)`;
+
+    return `${direction} ${value} respecto a la cotización anterior.`;
+}
+
+
+function formatDailyChange(change, display = "both") {
+    if (!change) {
+        return "Sin dato previo";
+    }
+
+    const arrow = change.money < 0 ? "↓" : change.money > 0 ? "↑" : "→";
+    const moneySign = change.money > 0 ? "+" : change.money < 0 ? "−" : "";
+    const percentageSign = change.percentage > 0
+        ? "+"
+        : change.percentage < 0
+            ? "−"
+            : "";
+
+    const moneyValue = `${moneySign}${formatRate(Math.abs(change.money))} Bs.`;
+    const percentageValue =
+        `${percentageSign}${formatRate(Math.abs(change.percentage))}%`;
+
+    if (display === "money") {
+        return `${arrow} ${moneyValue}`;
+    }
+
+    if (display === "percentage") {
+        return `${arrow} ${percentageValue}`;
+    }
+
+    return `${arrow} ${moneyValue} (${percentageValue})`;
 }
 
 
@@ -133,23 +198,8 @@ function getDifference(entity, rateType) {
 }
 
 
-function getDifferenceClass(difference, rateType) {
-    const isRelevantRate =
-        (state.operation === "buy" && rateType === "sell") ||
-        (state.operation === "sell" && rateType === "buy");
-
-    if (!isRelevantRate || difference.money === 0) {
-        return "difference--neutral";
-    }
-
-    const isFavorable =
-        state.operation === "buy"
-            ? difference.money < 0
-            : difference.money > 0;
-
-    return isFavorable
-        ? "difference--favorable"
-        : "difference--unfavorable";
+function getDifferenceClass() {
+    return "difference--neutral";
 }
 
 
@@ -184,11 +234,11 @@ function renderOfficialRate() {
         official.official_rate
     );
 
-    elements.officialDate.textContent = formatDate(
-        official.date
+    setDailyChange(
+        document.getElementById("official-daily-change"),
+        official.dailyChange,
+        "Variación diaria de la cotización oficial del BCB"
     );
-
-    elements.officialDate.dateTime = official.date;
 
     elements.updatedAt.textContent = formatDateTime(
         state.data.updatedAt
@@ -205,7 +255,27 @@ function renderOfficialRate() {
    ========================================================= */
 
 function renderEntity(entity, index) {
-    const isBestRate = index === 0;
+    if (entity.quoteAvailable === false) {
+        return `
+            <article class="entity-card entity-card--unavailable" aria-label="Sin cotización guardada para ${escapeHTML(entity.name)}">
+                <div class="entity-card__identity">
+                    <div class="entity-card__name-row">
+                        <span class="entity-card__rank">${index + 1}</span>
+                        <div class="entity-card__name-details">
+                            <h3 class="entity-card__name">${escapeHTML(entity.name)}</h3>
+                            <span class="entity-card__unavailable">Sin cotización para esta fecha</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="entity-card__rates" aria-hidden="true">
+                    <div class="entity-rate"><span class="entity-rate__label">Compra</span><span class="entity-rate__value">--</span></div>
+                    <div class="entity-rate"><span class="entity-rate__label">Venta</span><span class="entity-rate__value">--</span></div>
+                </div>
+            </article>
+        `;
+    }
+
+    const isBestRate = entity.quoteAvailable !== false && index === 0;
 
     const relevantRate = state.operation === "buy"
         ? "sell"
@@ -235,20 +305,8 @@ function renderEntity(entity, index) {
                         <h3 class="entity-card__name">
                             ${escapeHTML(entity.name)}
                         </h3>
-                        ${isBestRate ? `
-                            <span class="entity-card__best">Mejor opción</span>
-                        ` : ""}
                     </div>
                 </div>
-
-                <time
-                    class="entity-card__date"
-                    datetime="${escapeHTML(entity.date)}"
-                    aria-label="Fecha de cotización: ${formatDate(entity.date)}"
-                >
-                    <span class="entity-card__date-label">Cotización:</span>
-                    ${formatDate(entity.date)}
-                </time>
 
             </div>
 
@@ -257,6 +315,8 @@ function renderEntity(entity, index) {
                 <div class="entity-rate ${
                     relevantRate === "buy" ? relevantRateClass : ""
                 }">
+
+                    <span class="entity-rate__label">Compra</span>
 
                     <span class="entity-rate__value">
                         ${formatRate(entity.buy)}
@@ -269,6 +329,8 @@ function renderEntity(entity, index) {
                 <div class="entity-rate ${
                     relevantRate === "sell" ? relevantRateClass : ""
                 }">
+
+                    <span class="entity-rate__label">Venta</span>
 
                     <span class="entity-rate__value">
                         ${formatRate(entity.sell)}
@@ -344,20 +406,28 @@ function setModalDifference(elementId, value, type) {
     const element = document.getElementById(elementId);
 
     element.textContent = formatDifference(value, type);
+    element.classList.remove("difference--favorable", "difference--unfavorable");
+    element.classList.add("difference--neutral");
+    element.hidden = type !== state.display;
+}
 
-    element.classList.remove(
-        "difference--favorable",
-        "difference--unfavorable",
-        "difference--neutral"
-    );
 
-    if (value > 0) {
-        element.classList.add("difference--unfavorable");
-    } else if (value < 0) {
-        element.classList.add("difference--favorable");
-    } else {
-        element.classList.add("difference--neutral");
-    }
+function setDailyChange(
+    element,
+    change,
+    accessibleLabel,
+    { reverseDirection = false, display = "both" } = {}
+) {
+    const tone = dailyChangeTone(change, reverseDirection);
+    const accessibleText = `${accessibleLabel}. ${describeDailyChange(change, display)}`;
+
+    element.className = `${element.className
+        .split(" ")
+        .filter(className => !className.startsWith("daily-change--"))
+        .join(" ")} daily-change--${tone}`;
+    element.textContent = formatDailyChange(change, display);
+    element.setAttribute("role", "img");
+    element.setAttribute("aria-label", accessibleText);
 }
 
 
@@ -369,8 +439,12 @@ function renderModalDetails(entity) {
 
     const entityDate = document.getElementById("modal-entity-date");
 
-    entityDate.textContent = `Cotización: ${formatDate(entity.date)}`;
+    entityDate.textContent = formatDate(entity.date);
     entityDate.dateTime = entity.date;
+    entityDate.setAttribute(
+        "aria-label",
+        `Fecha de cotización de ${entity.name}: ${formatDate(entity.date)}`
+    );
 
     document.getElementById("modal-buy").textContent =
         `${formatRate(entity.buy)} Bs.`;
@@ -381,8 +455,26 @@ function renderModalDetails(entity) {
     document.getElementById("modal-official-rate").textContent =
         `${formatRate(official.official_rate)} Bs.`;
 
-    document.getElementById("modal-official-date").textContent =
-        `Fecha: ${formatDate(official.date)}`;
+    setDailyChange(
+        document.getElementById("modal-buy-daily-change"),
+        entity.dailyChanges?.buy,
+        `Variación diaria de compra de ${entity.name}`,
+        { reverseDirection: true, display: state.display }
+    );
+
+    setDailyChange(
+        document.getElementById("modal-sell-daily-change"),
+        entity.dailyChanges?.sell,
+        `Variación diaria de venta de ${entity.name}`,
+        { display: state.display }
+    );
+
+    setDailyChange(
+        document.getElementById("modal-official-daily-change"),
+        official.dailyChange,
+        "Variación diaria de la cotización oficial del BCB",
+        { display: state.display }
+    );
 
     setModalDifference(
         "modal-buy-money",
@@ -517,15 +609,28 @@ function handleModalKeyboard(event) {
    9. CONTROL BUTTONS
    ========================================================= */
 
-function updateButtonStates(buttons, attribute, selectedValue) {
-    buttons.forEach(button => {
-        const isActive = button.dataset[attribute] === selectedValue;
+function updateModeButtons() {
+    const operationLabel = state.operation === "buy"
+        ? "Comprar USD"
+        : "Vender USD";
+    const displayLabel = state.display === "money" ? "Bs." : "%";
+    const displayDescription = state.display === "money"
+        ? "bolivianos"
+        : "porcentaje";
 
-        button.classList.toggle("is-active", isActive);
-
+    elements.operationButtons.forEach(button => {
+        button.textContent = operationLabel;
         button.setAttribute(
-            "aria-pressed",
-            String(isActive)
+            "aria-label",
+            `Operación actual: ${operationLabel}. Activar para cambiar.`
+        );
+    });
+
+    elements.displayButtons.forEach(button => {
+        button.textContent = displayLabel;
+        button.setAttribute(
+            "aria-label",
+            `Formato actual: ${displayDescription}. Activar para cambiar.`
         );
     });
 }
@@ -537,12 +642,7 @@ function handleOperationChange(operation) {
     }
 
     state.operation = operation;
-
-    updateButtonStates(
-        elements.operationButtons,
-        "operation",
-        state.operation
-    );
+    updateModeButtons();
 
     if (state.data) {
         renderEntityList();
@@ -556,16 +656,44 @@ function handleDisplayChange(display) {
     }
 
     state.display = display;
-
-    updateButtonStates(
-        elements.displayButtons,
-        "display",
-        state.display
-    );
+    updateModeButtons();
 
     if (state.data) {
         renderEntityList();
+
+        if (!elements.modal.hidden && activeModalEntity) {
+            renderModalDetails(activeModalEntity);
+        }
     }
+}
+
+
+function handleQuoteDateChange() {
+    if (!state.currentData) {
+        return;
+    }
+
+    if (!elements.quoteDate.value) {
+        elements.quoteDate.value = state.data.selectedDate;
+        return;
+    }
+
+    const selectedDate = elements.quoteDate.value;
+    const selectedData = selectedDate === state.currentData.official.date
+        ? state.currentData
+        : DollarData.selectDashboardDate(state.currentData, selectedDate);
+
+    if (!selectedData) {
+        elements.quoteDateStatus.textContent =
+            `No hay una cotización oficial guardada para ${formatDate(selectedDate)}.`;
+        elements.quoteDate.value = state.data.selectedDate ?? state.currentData.official.date;
+        return;
+    }
+
+    elements.quoteDateStatus.textContent = "";
+    state.data = selectedData;
+    renderOfficialRate();
+    renderEntityList();
 }
 
 
@@ -623,13 +751,20 @@ async function initializeDashboard() {
     renderLoadingState();
 
     try {
-        state.data = await DollarData.loadDashboardData();
+        state.currentData = await DollarData.loadDashboardData();
+        state.data = state.currentData;
+
+        const availableDates = state.currentData.availableDates;
+        elements.quoteDate.min = availableDates[0] ?? state.currentData.official.date;
+        elements.quoteDate.max = state.currentData.official.date;
+        elements.quoteDate.value = state.currentData.official.date;
 
         renderOfficialRate();
         renderEntityList();
 
     } catch (error) {
         state.data = null;
+        state.currentData = null;
 
         renderErrorState(error);
 
@@ -647,19 +782,19 @@ function initializeEventListeners() {
 
     elements.operationButtons.forEach(button => {
         button.addEventListener("click", () => {
-            handleOperationChange(
-                button.dataset.operation
-            );
+            handleOperationChange(state.operation === "buy" ? "sell" : "buy");
         });
     });
 
     elements.displayButtons.forEach(button => {
         button.addEventListener("click", () => {
             handleDisplayChange(
-                button.dataset.display
+                state.display === "money" ? "percentage" : "money"
             );
         });
     });
+
+    elements.quoteDate.addEventListener("change", handleQuoteDateChange);
 
     elements.entityList.addEventListener("click", event => {
         const retryButton = event.target.closest(
@@ -1130,6 +1265,7 @@ function initializeChartPeriodButtons() {
 
 function initializeApp() {
     initializeEventListeners();
+    updateModeButtons();
     initializeDashboard();
 }
 
