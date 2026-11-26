@@ -21,6 +21,8 @@ let chartInstances = {
 };
 
 let chartRequestId = 0;
+let availableQuoteDates = new Set();
+let mobileCalendarMonth = null;
 
 
 /* =========================================================
@@ -32,6 +34,14 @@ const elements = {
     updatedAt: document.getElementById("updated-at"),
     quoteDate: document.getElementById("quote-date"),
     quoteDateStatus: document.getElementById("quote-date-status"),
+    mobileCalendar: document.getElementById("mobile-date-picker"),
+    mobileCalendarTrigger: document.getElementById("mobile-date-trigger"),
+    mobileCalendarSelected: document.getElementById("mobile-date-selected"),
+    mobileCalendarPanel: document.getElementById("mobile-date-panel"),
+    mobileCalendarMonth: document.getElementById("mobile-date-month"),
+    mobileCalendarDays: document.getElementById("mobile-date-days"),
+    mobileCalendarPrevious: document.getElementById("mobile-date-previous"),
+    mobileCalendarNext: document.getElementById("mobile-date-next"),
 
     entityList: document.getElementById("entity-list"),
     entityItems: document.getElementById("entity-list-items"),
@@ -164,6 +174,247 @@ function formatDate(value) {
         year: "numeric",
         timeZone: "America/La_Paz"
     }).format(date);
+}
+
+
+function parseISODate(value) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day, 12);
+}
+
+
+function toISODate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+
+function formatAccessibleDate(value) {
+    return new Intl.DateTimeFormat("es-BO", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "America/La_Paz",
+    }).format(parseISODate(value));
+}
+
+
+function calendarMonthIndex(date) {
+    return date.getFullYear() * 12 + date.getMonth();
+}
+
+
+function renderMobileCalendar() {
+    if (!state.currentData || !mobileCalendarMonth) {
+        return;
+    }
+
+    const availableDates = [...availableQuoteDates].sort();
+    if (availableDates.length === 0) {
+        return;
+    }
+
+    const firstAvailableDate = parseISODate(availableDates[0]);
+    const lastAvailableDate = parseISODate(availableDates[availableDates.length - 1]);
+    const year = mobileCalendarMonth.getFullYear();
+    const month = mobileCalendarMonth.getMonth();
+    const firstOfMonth = new Date(year, month, 1, 12);
+    const daysInMonth = new Date(year, month + 1, 0, 12).getDate();
+    const mondayFirstOffset = (firstOfMonth.getDay() + 6) % 7;
+    const selectedDate = state.data.selectedDate;
+    const monthLabel = new Intl.DateTimeFormat("es-BO", {
+        month: "long",
+        year: "numeric",
+        timeZone: "America/La_Paz",
+    }).format(firstOfMonth);
+
+    elements.mobileCalendarMonth.textContent =
+        monthLabel.charAt(0).toLocaleUpperCase("es-BO") + monthLabel.slice(1);
+    elements.mobileCalendarPrevious.disabled =
+        calendarMonthIndex(firstOfMonth) <= calendarMonthIndex(firstAvailableDate);
+    elements.mobileCalendarNext.disabled =
+        calendarMonthIndex(firstOfMonth) >= calendarMonthIndex(lastAvailableDate);
+    elements.mobileCalendarDays.replaceChildren();
+
+    for (let offset = 0; offset < mondayFirstOffset; offset += 1) {
+        const emptyDay = document.createElement("li");
+        emptyDay.setAttribute("aria-hidden", "true");
+        elements.mobileCalendarDays.append(emptyDay);
+    }
+
+    const today = toISODate(new Date());
+    for (let day = 1; day <= daysInMonth; day += 1) {
+        const date = new Date(year, month, day, 12);
+        const dateValue = toISODate(date);
+        const isAvailable = availableQuoteDates.has(dateValue);
+        const item = document.createElement("li");
+        const dayButton = document.createElement("button");
+
+        dayButton.type = "button";
+        dayButton.className = "mobile-date-picker__day";
+        dayButton.textContent = String(day);
+        dayButton.disabled = !isAvailable;
+        dayButton.dataset.date = dateValue;
+        dayButton.setAttribute("aria-label", isAvailable
+            ? formatAccessibleDate(dateValue)
+            : `${formatAccessibleDate(dateValue)}, sin cotización disponible`);
+        dayButton.setAttribute("aria-pressed", String(dateValue === selectedDate));
+
+        if (dateValue === selectedDate) {
+            dayButton.classList.add("is-selected");
+        }
+        if (dateValue === today) {
+            dayButton.setAttribute("aria-current", "date");
+        }
+
+        dayButton.addEventListener("click", () => selectMobileCalendarDate(dateValue));
+        item.append(dayButton);
+        elements.mobileCalendarDays.append(item);
+    }
+}
+
+
+function updateMobileCalendarSelection(date) {
+    if (!date || !elements.mobileCalendarSelected) {
+        return;
+    }
+
+    elements.mobileCalendarSelected.textContent = formatDate(date);
+    elements.mobileCalendarTrigger.setAttribute(
+        "aria-label",
+        `Fecha seleccionada: ${formatAccessibleDate(date)}. Abrir calendario.`
+    );
+    if (elements.mobileCalendarPanel && !elements.mobileCalendarPanel.hidden) {
+        mobileCalendarMonth = parseISODate(date);
+        renderMobileCalendar();
+    }
+}
+
+
+function openMobileCalendar() {
+    if (!state.currentData) {
+        return;
+    }
+
+    mobileCalendarMonth = parseISODate(state.data.selectedDate);
+    renderMobileCalendar();
+    elements.mobileCalendarPanel.hidden = false;
+    elements.mobileCalendarTrigger.setAttribute("aria-expanded", "true");
+
+    const selectedDay = elements.mobileCalendarDays.querySelector(
+        ".mobile-date-picker__day.is-selected:not(:disabled)"
+    );
+    const firstAvailableDay = elements.mobileCalendarDays.querySelector(
+        ".mobile-date-picker__day:not(:disabled)"
+    );
+    (selectedDay ?? firstAvailableDay ?? elements.mobileCalendarPrevious).focus();
+}
+
+
+function closeMobileCalendar({ restoreFocus = false } = {}) {
+    elements.mobileCalendarPanel.hidden = true;
+    elements.mobileCalendarTrigger.setAttribute("aria-expanded", "false");
+
+    if (restoreFocus) {
+        elements.mobileCalendarTrigger.focus();
+    }
+}
+
+
+function selectMobileCalendarDate(date) {
+    if (!availableQuoteDates.has(date)) {
+        return;
+    }
+
+    elements.quoteDate.value = date;
+    applyQuoteDate(date);
+    closeMobileCalendar({ restoreFocus: true });
+}
+
+
+function moveMobileCalendarMonth(offset) {
+    if (!mobileCalendarMonth) {
+        return;
+    }
+
+    const nextMonth = new Date(
+        mobileCalendarMonth.getFullYear(),
+        mobileCalendarMonth.getMonth() + offset,
+        1,
+        12
+    );
+    const dates = [...availableQuoteDates].sort();
+    const firstMonth = parseISODate(dates[0]);
+    const lastMonth = parseISODate(dates[dates.length - 1]);
+
+    if (
+        calendarMonthIndex(nextMonth) < calendarMonthIndex(firstMonth) ||
+        calendarMonthIndex(nextMonth) > calendarMonthIndex(lastMonth)
+    ) {
+        return;
+    }
+
+    mobileCalendarMonth = nextMonth;
+    renderMobileCalendar();
+}
+
+
+function handleMobileCalendarKeydown(event) {
+    const dayButton = event.target.closest(".mobile-date-picker__day");
+    if (!dayButton || dayButton.disabled) {
+        return;
+    }
+
+    const offsets = {
+        ArrowLeft: -1,
+        ArrowRight: 1,
+        ArrowUp: -7,
+        ArrowDown: 7,
+    };
+
+    if (event.key === "PageUp" || event.key === "PageDown") {
+        event.preventDefault();
+        moveMobileCalendarMonth(event.key === "PageUp" ? -1 : 1);
+        const focusTarget = elements.mobileCalendarDays.querySelector(
+            ".mobile-date-picker__day.is-selected:not(:disabled), .mobile-date-picker__day:not(:disabled)"
+        );
+        focusTarget?.focus();
+        return;
+    }
+
+    const offset = offsets[event.key];
+    if (offset === undefined) {
+        return;
+    }
+
+    event.preventDefault();
+    const candidate = parseISODate(dayButton.dataset.date);
+    candidate.setDate(candidate.getDate() + offset);
+    const direction = Math.sign(offset);
+    const availableDates = [...availableQuoteDates].sort();
+    const firstAvailableDate = availableDates[0];
+    const lastAvailableDate = availableDates[availableDates.length - 1];
+
+    for (let attempt = 0; attempt < 3700; attempt += 1) {
+        const candidateValue = toISODate(candidate);
+        if (candidateValue < firstAvailableDate || candidateValue > lastAvailableDate) {
+            return;
+        }
+        if (availableQuoteDates.has(candidateValue)) {
+            mobileCalendarMonth = parseISODate(candidateValue);
+            renderMobileCalendar();
+            elements.mobileCalendarDays
+                .querySelector(`[data-date="${candidateValue}"]`)
+                ?.focus();
+            return;
+        }
+
+        candidate.setDate(candidate.getDate() + direction);
+    }
 }
 
 
@@ -668,32 +919,42 @@ function handleDisplayChange(display) {
 }
 
 
-function handleQuoteDateChange() {
+function applyQuoteDate(selectedDate) {
     if (!state.currentData) {
         return;
     }
 
-    if (!elements.quoteDate.value) {
+    if (!selectedDate) {
         elements.quoteDate.value = state.data.selectedDate;
+        updateMobileCalendarSelection(state.data.selectedDate);
         return;
     }
 
-    const selectedDate = elements.quoteDate.value;
-    const selectedData = selectedDate === state.currentData.official.date
-        ? state.currentData
-        : DollarData.selectDashboardDate(state.currentData, selectedDate);
+    const selectedData = availableQuoteDates.has(selectedDate)
+        ? selectedDate === state.currentData.official.date
+            ? state.currentData
+            : DollarData.selectDashboardDate(state.currentData, selectedDate)
+        : null;
 
     if (!selectedData) {
         elements.quoteDateStatus.textContent =
             `No hay una cotización oficial guardada para ${formatDate(selectedDate)}.`;
         elements.quoteDate.value = state.data.selectedDate ?? state.currentData.official.date;
+        updateMobileCalendarSelection(elements.quoteDate.value);
         return;
     }
 
     elements.quoteDateStatus.textContent = "";
+    elements.quoteDate.value = selectedDate;
+    updateMobileCalendarSelection(selectedDate);
     state.data = selectedData;
     renderOfficialRate();
     renderEntityList();
+}
+
+
+function handleQuoteDateChange(event) {
+    applyQuoteDate(event.currentTarget.value);
 }
 
 
@@ -755,9 +1016,13 @@ async function initializeDashboard() {
         state.data = state.currentData;
 
         const availableDates = state.currentData.availableDates;
+        availableQuoteDates = new Set(availableDates);
         elements.quoteDate.min = availableDates[0] ?? state.currentData.official.date;
         elements.quoteDate.max = state.currentData.official.date;
         elements.quoteDate.value = state.currentData.official.date;
+        mobileCalendarMonth = parseISODate(state.currentData.official.date);
+        updateMobileCalendarSelection(state.currentData.official.date);
+        renderMobileCalendar();
 
         renderOfficialRate();
         renderEntityList();
@@ -795,6 +1060,36 @@ function initializeEventListeners() {
     });
 
     elements.quoteDate.addEventListener("change", handleQuoteDateChange);
+    elements.mobileCalendarTrigger.addEventListener("click", () => {
+        if (elements.mobileCalendarPanel.hidden) {
+            openMobileCalendar();
+        } else {
+            closeMobileCalendar();
+        }
+    });
+    elements.mobileCalendarPrevious.addEventListener("click", () => {
+        moveMobileCalendarMonth(-1);
+    });
+    elements.mobileCalendarNext.addEventListener("click", () => {
+        moveMobileCalendarMonth(1);
+    });
+    elements.mobileCalendarDays.addEventListener(
+        "keydown",
+        handleMobileCalendarKeydown
+    );
+    document.addEventListener("click", event => {
+        if (
+            !elements.mobileCalendarPanel.hidden &&
+            !elements.mobileCalendar.contains(event.target)
+        ) {
+            closeMobileCalendar();
+        }
+    });
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !elements.mobileCalendarPanel.hidden) {
+            closeMobileCalendar({ restoreFocus: true });
+        }
+    });
 
     elements.entityList.addEventListener("click", event => {
         const retryButton = event.target.closest(

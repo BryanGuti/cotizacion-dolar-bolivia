@@ -12,7 +12,7 @@
 
     <title>Dólar Bolivia | Cotizaciones</title>
 
-    <link rel="stylesheet" href="./css/styles.css">
+    <link rel="stylesheet" href="./css/styles.css?v=2">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,7 +24,7 @@
 
     <script src="./js/data.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js" defer></script>
-    <script src="./js/app.js" defer></script>
+    <script src="./js/app.js?v=2" defer></script>
 </head>
 
 <body>
@@ -118,7 +118,38 @@
                     </div>
 
                     <div class="control-group control-group--date">
-                        <input type="date" id="quote-date" name="quote-date" aria-label="Filtrar cotizaciones por fecha">
+                        <input type="date" id="quote-date" class="quote-date__desktop" name="quote-date" aria-label="Filtrar cotizaciones por fecha" aria-describedby="quote-date-status">
+                        <div class="mobile-date-picker" id="mobile-date-picker">
+                            <button
+                                type="button"
+                                class="mobile-date-picker__trigger"
+                                id="mobile-date-trigger"
+                                aria-label="Elegir fecha de cotización"
+                                aria-haspopup="dialog"
+                                aria-expanded="false"
+                                aria-controls="mobile-date-panel"
+                            >
+                                <span id="mobile-date-selected">Seleccionar fecha</span>
+                                <span class="mobile-date-picker__trigger-icon" aria-hidden="true">▾</span>
+                            </button>
+                            <section
+                                class="mobile-date-picker__panel"
+                                id="mobile-date-panel"
+                                role="dialog"
+                                aria-label="Calendario de cotizaciones disponibles"
+                                hidden
+                            >
+                                <div class="mobile-date-picker__month-nav">
+                                    <button type="button" id="mobile-date-previous" aria-label="Mes anterior">‹</button>
+                                    <h2 id="mobile-date-month" aria-live="polite"></h2>
+                                    <button type="button" id="mobile-date-next" aria-label="Mes siguiente">›</button>
+                                </div>
+                                <div class="mobile-date-picker__weekdays" aria-hidden="true">
+                                    <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+                                </div>
+                                <ol class="mobile-date-picker__days" id="mobile-date-days" aria-label="Días del mes"></ol>
+                            </section>
+                        </div>
                         <span class="quote-date__status" id="quote-date-status" aria-live="polite"></span>
                     </div>
             </section>

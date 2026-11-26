@@ -1073,7 +1073,7 @@ a:focus-visible {
 .control-group--date input {
     width: 100%;
     min-width: 0;
-    height: 42px;
+    min-height: 2.75rem;
     padding: 6px 9px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
@@ -2150,9 +2150,15 @@ button:focus-visible, a:focus-visible, [tabindex="0"]:focus-visible { outline: 3
     max-width: 100%;
     inline-size: 100%;
     min-inline-size: 0;
-    padding-inline: 6px;
+    min-height: 2.75rem;
+    padding-inline: clamp(.2rem, 1vw, .375rem);
     font-size: .875rem;
+    color: var(--color-text);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
 }
+.mobile-date-picker { display: none; }
 .entity-list-header__title { text-align: center; }
 
 /* Keep the modal's rate cards focused on the label and primary value. */
@@ -2188,7 +2194,7 @@ button:focus-visible, a:focus-visible, [tabindex="0"]:focus-visible { outline: 3
 .modal-rate__differences { flex-wrap: wrap; }
 @media (max-width: 600px) {
     .controls { padding: 10px; gap: 10px 8px; }
-    .control-group--date input { padding-inline: 4px; font-size: .8125rem; }
+    .control-group--date input { font-size: clamp(.75rem, 3.5vw, .8125rem); }
     .modal-rate { min-height: 96px; padding: 8px 3px; }
     .modal-rate__metadata { padding-inline: 2px; }
     .modal-rate__metadata .modal-rate__daily-change { font-size: .68rem; }
@@ -2217,10 +2223,132 @@ button:focus-visible, a:focus-visible, [tabindex="0"]:focus-visible { outline: 3
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    padding-inline: clamp(.2rem, 1vw, .375rem);
     font-size: clamp(.75rem, 3.5vw, .875rem);
 }
 @media (max-width: 22rem) {
     .controls { gap: .5rem; }
     .control-group--date input { letter-spacing: -.025em; }
+}
+.control-group--date input.quote-date__desktop {
+    height: 42px;
+    min-height: 0;
+    padding: 6px 9px;
+    font-size: 14px;
+}
+@media (max-width: 700px) {
+    .control-group--date input.quote-date__desktop { display: none; }
+    .mobile-date-picker {
+        display: grid;
+        min-width: 0;
+        gap: .5rem;
+    }
+    .mobile-date-picker__trigger {
+        width: 100%;
+        min-width: 0;
+        min-height: 2.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        padding: .5rem .75rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        color: var(--color-text);
+        background: var(--color-background);
+        text-align: start;
+    }
+    .mobile-date-picker__trigger:focus-visible,
+    .mobile-date-picker__panel button:focus-visible {
+        outline: 2px solid var(--color-primary-hover);
+        outline-offset: 2px;
+    }
+    .mobile-date-picker__trigger-icon { color: var(--color-text-muted); }
+    .mobile-date-picker__panel {
+        display: grid;
+        min-width: 0;
+        gap: .5rem;
+        padding: .75rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        background: var(--color-surface);
+        box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.24);
+    }
+    #mobile-date-panel[hidden] { display: none; }
+    .mobile-date-picker__month-nav {
+        display: grid;
+        grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
+        align-items: center;
+        gap: .5rem;
+    }
+    .mobile-date-picker__month-nav h2 {
+        color: var(--color-text);
+        font-size: .95rem;
+        font-weight: 700;
+        text-align: center;
+    }
+    .mobile-date-picker__month-nav button {
+        min-width: 2.5rem;
+        min-height: 2.5rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        color: var(--color-text);
+        background: var(--color-background);
+        font-size: 1.25rem;
+        line-height: 1;
+    }
+    .mobile-date-picker__month-nav button:disabled {
+        color: var(--color-text-muted);
+        cursor: not-allowed;
+    }
+    .mobile-date-picker__weekdays,
+    .mobile-date-picker__days {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: .2rem;
+        text-align: center;
+    }
+    .mobile-date-picker__weekdays {
+        color: var(--color-text-muted);
+        font-size: .75rem;
+        font-weight: 700;
+    }
+    .mobile-date-picker__days {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    .mobile-date-picker__days li { min-width: 0; }
+    .mobile-date-picker__day {
+        width: 100%;
+        min-width: 0;
+        min-height: 2.25rem;
+        padding: .25rem;
+        border: 1px solid transparent;
+        border-radius: 50%;
+        color: var(--color-text);
+        background: transparent;
+        font-size: .875rem;
+        font-variant-numeric: tabular-nums;
+    }
+    .mobile-date-picker__day:not(:disabled):hover {
+        background: var(--color-surface-hover);
+    }
+    .mobile-date-picker__day:disabled {
+        color: var(--color-text-muted);
+        cursor: not-allowed;
+    }
+    .mobile-date-picker__day.is-selected {
+        border-color: var(--color-primary);
+        color: #080d18;
+        background: var(--color-primary);
+        font-weight: 700;
+    }
+    .mobile-date-picker__day[aria-current="date"]:not(.is-selected) {
+        border-color: var(--color-primary-hover);
+    }
+}
+
+#quote-date {
+    display: flex;
+    justify-content: center;
 }
